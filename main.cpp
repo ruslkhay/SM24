@@ -3,8 +3,6 @@
 #include <iostream>
 #include <vector>
 
-const double eps = 0.01;
-
 struct Point {
   double x, y;
 };
@@ -18,52 +16,83 @@ bool isInRectangle(Point p) {
   return p.y >= 0 && p.y <= 3 && p.x >= 0 && p.x <= 3;
 }
 
-// Function to compute the length of the segment in TR
-double lengthInTrapezoid(Point p1, Point p2) {
-  // if (isInRectangle(p1) && isInRectangle(p2))
-  bool horizShift = p1.y == p2.y;
-  bool vertShift = p1.x == p2.x;
-  if (isInTrapezoid(p1) && isInTrapezoid(p2)) {
-    if (vertShift) {
-      return std::abs(p2.y - p1.y);
-    }
-    if (horizShift) {
-      return std::abs(p2.x - p1.x);
-    }
-  } else if (isInTrapezoid(p1) || isInTrapezoid(p2)) {
-    // If only one point is inside the trapezoid, calculate the distance to the
-    // edge
-    Point inPoint = isInTrapezoid(p1) ? p1 : p2;
-    Point outPoint = isInTrapezoid(p1) ? p2 : p1;
+// BC side lays on y = -3x + 9 line
+double lineBC(char axis, double val) {
+  if (axis == 'x') {
+    return -3 * val + 9;
+  } else {
+    return 3 - val / 3;
+  }
+}
 
-    if (!isInRectangle(outPoint)) {
-      if (vertShift) {
-        // If point is in sub-rectangular of trapezoid
-        if (inPoint.x <= 2) {
-          return (outPoint.y - inPoint.y) * 1 / 2;
-        }
-        // If point is in sub-triangle of trapezoid
-        else {
-          double edgeY = -3 * outPoint.x + 9;
-          return edgeY - inPoint.y;
-        }
-      }
-      if (horizShift) {
-        double edgeX = (9 - outPoint.y) / 3;
-        return edgeX - inPoint.x;
-      }
-    } else {
-      if (vertShift) {
-        double edgeY = -3 * outPoint.x + 9;
-        return edgeY - inPoint.y;
-      }
-      if (horizShift) {
-        double edgeX = (9 - outPoint.y) / 3;
-        return edgeX - inPoint.x;
+double horizontalShiftLen(Point left, Point right) {
+  if (isInTrapezoid(right)) {
+    return right.x - left.x;
+  } else {
+    auto rLimit = lineBC('y', right.y);
+    return rLimit - left.x;
+  }
+}
+
+double verticalShiftLen(Point bottom, Point top) {
+  if (isInTrapezoid(top)) {
+    return top.y - bottom.y;
+  } else {
+    auto tLimit = lineBC('x', top.x);
+    return tLimit - bottom.y;
+  }
+}
+
+void computeA(std::vector<std::vector<double>> &a) {
+  int M = a.size();
+  int N = a[0].size() + 1;
+  double h1 = 3.0 / M;
+  double h2 = 3.0 / N;
+  double eps = std::pow(std::max(h1, h2), 2);
+
+  // Calculate values for each inner node
+  for (int i = 0; i < M; i++) {
+    for (int j = 0; j < N - 1; j++) {
+      // Node coordinates
+      Point P_ij = {(i + 0.5) * h1, (j + 0.5) * h2};
+      Point P_ij_next = {P_ij.x, P_ij.y + h2};
+
+      double lv_ij = verticalShiftLen(P_ij, P_ij_next);
+      // std::cout << "lv" << i+1 << j+1 << '=' << lv_ij << " h2=" << h2 <<
+      // std::endl;
+      if (lv_ij == h2) {
+        a[i][j] = 1;
+      } else {
+        a[i][j] = lv_ij / h2 + (1 - lv_ij / h2) * (1 / eps);
       }
     }
   }
-  return 0; // If both points are outside and not in trapezoid
+}
+
+void computeB(std::vector<std::vector<double>> &b) {
+  int M = b.size() + 1;
+  int N = b[0].size();
+  double h1 = 3.0 / M;
+  double h2 = 3.0 / N;
+  double eps = std::pow(std::max(h1, h2), 2);
+
+  // Calculate values for each inner node
+  for (int i = 0; i < M - 1; i++) {
+    for (int j = 0; j < N; j++) {
+      // Node coordinates
+      Point P_ij = {(i + 0.5) * h1, (j + 0.5) * h2};
+      Point P_ji_next = {P_ij.x + h1, P_ij.y};
+
+      double lh_ij = horizontalShiftLen(P_ij, P_ji_next);
+      // std::cout << "lh" << i+1 << j+1 << '=' <<lh_ij << " h1=" << h1 << "
+      // eps=" << eps << std::endl;
+      if (lh_ij == h1) {
+        b[i][j] = 1;
+      } else {
+        b[i][j] = lh_ij / h1 + (1 - lh_ij / h1) * (1 / eps);
+      }
+    }
+  }
 }
 
 /// @brief Calculate area for the gird rectangles, which is set by adjacent
@@ -143,44 +172,33 @@ double intersectionArea(Point bottomLeftPoint, Point topRightPoint) {
   return S_ij / (h1 * h2);
 }
 
-void computeGrid(std::vector<std::vector<double>> &a,
-                 std::vector<std::vector<double>> &b,
-                 std::vector<std::vector<double>> &F) {
-
-  int M = a.size();
-  int N = a[0].size();
+void computeF(std::vector<std::vector<double>> &F) {
+  int M = F.size() + 1;
+  int N = F[0].size() + 1;
   double h1 = 3.0 / M;
   double h2 = 3.0 / N;
 
   // Calculate values for each inner node
-  for (int i = 0; i < M; i++) {
-    for (int j = 0; j < N; j++) {
+  for (int i = 0; i < M - 1; i++) {
+    for (int j = 0; j < N - 1; j++) {
       // Node coordinates
-      Point P_ij = {((i + 1) - 0.5) * h1, ((j + 1) - 0.5) * h2};
-      Point P_ij_next = {P_ij.x, P_ij.y + h2};
-      Point P_ji_next = {P_ij.x + h1, P_ij.y};
+      Point P_ij = {(i + 0.5) * h1, (j + 0.5) * h2};
+      Point P_ij_diag = {P_ij.x + h1, P_ij.y + h2};
 
-      double lv_ij = lengthInTrapezoid(P_ij, P_ij_next);
-      double lh_ij = lengthInTrapezoid(P_ij, P_ji_next);
-
-      if (lv_ij == h2) {
-        a[i][j] = 1;
-      } else {
-        a[i][j] = 1 / h2 * lv_ij + (1 - lv_ij / h2) * (1 / eps);
-      }
-
-      if (lh_ij == h1) {
-        b[i][j] = 1;
-      } else {
-        b[i][j] = 1 / h1 * lh_ij + (1 - lh_ij / h1) * (1 / eps);
-      }
-
-      if (i != M - 1 && j != N - 1) {
-        Point P_ij_diag = {P_ij.x + h1, P_ij.y + h2};
-        F[i][j] = intersectionArea(P_ij, P_ij_diag);
-      }
+      F[i][j] = intersectionArea(P_ij, P_ij_diag);
     }
   }
+}
+
+double product(std::vector<std::vector<double>> &v1,
+               std::vector<std::vector<double>> &v2, double h1, double h2) {
+  double res = 0;
+  for (int i = 0; i < static_cast<int>(v1.size()); i++) {
+    for (int j = 0; j < static_cast<int>(v1[0].size()); j++) {
+      res += h1 * h2 * v1[i][j] * v2[i][j];
+    }
+  }
+  return res;
 }
 
 void calculateW(const std::vector<std::vector<double>> &a,
@@ -188,18 +206,19 @@ void calculateW(const std::vector<std::vector<double>> &a,
                 const std::vector<std::vector<double>> &F,
                 std::vector<std::vector<double>> &W, int maxIterations,
                 double tolerance) {
-
-  int M = a.size();
-  int N = a[0].size();
-  std::vector<std::vector<double>> r(M + 1, std::vector<double>(N + 1, 0.0));
+  int M = F.size() + 1;
+  int N = F[0].size() + 1;
   double h1 = 3.0 / M;
   double h2 = 3.0 / N;
+
+  std::vector<std::vector<double>> r(M + 1, std::vector<double>(N + 1, 0.0));
+  std::vector<std::vector<double>> Ar(M + 1, std::vector<double>(N + 1, 0.0));
   // Perform the iterative steepest descent
   for (int iter = 0; iter < maxIterations; iter++) {
     std::vector<std::vector<double>> newW = W;
     double maxChange = 0.0;
 
-    // Iterate through the elements to get residuals
+    // Get residuals
     for (int i = 0; i < M - 1; i++) {
       for (int j = 0; j < N - 1; j++) {
         // Calculate the finite difference terms
@@ -213,7 +232,8 @@ void calculateW(const std::vector<std::vector<double>> &a,
         r[I][J] = (term2 - term1 + term4 - term3 + F[i][j]);
       }
     }
-    //  of W (excluding the boundary conditions)
+
+    // Get Ar
     for (int i = 0; i < M - 1; i++) {
       for (int j = 0; j < N - 1; j++) {
         int I = i + 1;
@@ -224,14 +244,33 @@ void calculateW(const std::vector<std::vector<double>> &a,
         double term3 = (b[i][j] * (r[I][J] - r[I][J - 1])) / (h2 * h2);
         double term4 = (b[i][j + 1] * (r[I][J + 1] - r[I][J])) / (h2 * h2);
 
-        // Compute the new value of W based on the equation
-        double theta = r[I][J] / (term1 - term2 + term3 - term4);
-        newW[I][J] = W[I][J] - theta * r[I][J];
+        Ar[I][J] = (term2 - term1 + term4 - term3 + F[i][j]);
       }
     }
+
+    // Step of descend
+    double theta = product(r, r, h1, h2) / product(Ar, r, h1, h2);
+    for (int i = 0; i < M - 1; i++) {
+      for (int j = 0; j < N - 1; j++) {
+        int I = i + 1;
+        int J = j + 1;
+        newW[I][J] = W[I][J] - theta * r[I][J];
+        // Track the maximum change
+        maxChange = std::max(maxChange, std::abs(newW[i][j] - W[i][j]));
+      }
+    }
+
     // Update W after all computations
     W = newW;
-
+    // Output the result
+    std::cout << "Residuals:\n";
+    for (int i = 0; i <= M; i++) {
+      for (int j = 0; j <= N; j++) {
+        std::cout << std::fixed << std::setprecision(4) << r[i][j] << " ";
+      }
+      std::cout << std::endl;
+    }
+    std::cout << std::endl;
     // Check for convergence
     if (maxChange < tolerance) {
       break;
@@ -239,43 +278,64 @@ void calculateW(const std::vector<std::vector<double>> &a,
   }
 }
 
+void printABF(const std::vector<std::vector<double>> &a,
+              const std::vector<std::vector<double>> &b,
+              const std::vector<std::vector<double>> &F) {
+  // Print results for verification
+  int M = F.size() + 1;
+  int N = F[0].size() + 1;
+  for (int i = 0; i < M; i++) {
+    for (int j = 0; j < N - 1; j++) {
+      std::cout << " a[" << i + 1 << "][" << j + 1 << "] = " << a[i][j];
+    }
+    std::cout << std::endl;
+  }
+
+  for (int i = 0; i < M - 1; i++) {
+    for (int j = 0; j < N; j++) {
+      std::cout << " "
+                << "b[" << i + 1 << "][" << j + 1 << "] = " << b[i][j];
+    }
+    std::cout << std::endl;
+  }
+
+  for (int i = 0; i < M - 1; i++) {
+    for (int j = 0; j < N - 1; j++) {
+      std::cout << " F[" << i + 1 << "][" << j + 1 << "] = " << F[i][j];
+      std::cout << std::endl;
+    }
+    std::cout << std::endl;
+  }
+}
+
 int main() {
   // Define trapezoid vertices
-  // BC side lays on y = -3x + 9 line
   // const Point A = {0, 0};
   // const Point B = {3, 0};
   // const Point C = {2, 3};
   // const Point D = {0, 3};
 
   // Example usage
-  int M = 5;
-  int N = 5;
+  int M = 10;
+  int N = 10;
 
   // Example matrices (a, b, F) initialized with some values
-  std::vector<std::vector<double>> a(M, std::vector<double>(N, 0.0));
-  std::vector<std::vector<double>> b(M, std::vector<double>(N, 0.0));
+  std::vector<std::vector<double>> a(M, std::vector<double>(N - 1, 0.0));
+  std::vector<std::vector<double>> b(M - 1, std::vector<double>(N, 0.0));
   std::vector<std::vector<double>> F(M - 1, std::vector<double>(N - 1, 0.0));
-  computeGrid(a, b, F);
 
-  // Print results for verification
-  for (int i = 0; i < M; i++) {
-    for (int j = 0; j < N; j++) {
-      std::cout << "a[" << i << "][" << j << "] = " << a[i][j] << ", "
-                << "b[" << i << "][" << j << "] = " << b[i][j];
-      if (i != M - 1 && j != N - 1) {
-        std::cout << ", "
-                  << "F[" << i << "][" << j << "] = " << F[i][j];
-      }
-      std::cout << std::endl;
-    }
-    std::cout << std::endl;
-  }
+  computeA(a);
+  computeB(b);
+  computeF(F);
+
+  // printABF(a,b,F);
 
   std::vector<std::vector<double>> W(M + 1, std::vector<double>(N + 1, 0.0));
   int maxIterations = 1000;
   double tolerance = 1e-5;
   calculateW(a, b, F, W, maxIterations, tolerance);
 
+  std::cout << "Solution W:\n";
   // Output the result
   for (int i = 0; i <= M; i++) {
     for (int j = 0; j <= N; j++) {
