@@ -36,5 +36,6 @@ add_executable(openmp src/mainOpenMP.cpp)
 
 # Link OpenMP to the executable
 if(OpenMP_CXX_FOUND)
+    target_compile_options(openmp PRIVATE ${OpenMP_CXX_FLAGS})
     target_link_libraries(openmp PUBLIC OpenMP::OpenMP_CXX)
 endif()
