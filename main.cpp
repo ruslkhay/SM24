@@ -110,16 +110,15 @@ double intersectionArea(Point bottomLeftPoint, Point topRightPoint) {
     Point bottomRightPoint = {bottomLeftPoint.x + h1, bottomLeftPoint.y};
 
     Point p1, p2; // p1.y > p2.y, p1.x < p2.x always
-
     if (isInTrapezoid(topLeftPoint)) {
-      p1 = {(9 - topRightPoint.y) / 3, topLeftPoint.y};
+      p1 = {lineBC('y', topRightPoint.y), topLeftPoint.y};
     } else {
-      p1 = {topLeftPoint.x, -3 * topLeftPoint.x + 9};
+      p1 = {topLeftPoint.x, lineBC('x', topLeftPoint.x)};
     }
     if (isInTrapezoid(bottomRightPoint)) {
-      p2 = {bottomRightPoint.x, -3 * bottomRightPoint.x + 9};
+      p2 = {bottomRightPoint.x, lineBC('x', bottomRightPoint.x)};
     } else {
-      p2 = {(9 - bottomRightPoint.y) / 3, bottomRightPoint.y};
+      p2 = {lineBC('y', bottomRightPoint.y), bottomRightPoint.y};
     }
     bool p1OnVert = (p1.y < topLeftPoint.y && p1.x == topLeftPoint.x);
     bool p1OnHor = (p1.y == topLeftPoint.y && p1.x > topLeftPoint.x);
@@ -131,9 +130,6 @@ double intersectionArea(Point bottomLeftPoint, Point topRightPoint) {
 
     // If interception is a triangle
     if ((p1OnVert | p1InCorner) && (p2OnHor | p2InCorner)) {
-      std::cout << bottomLeftPoint.x << ',' << bottomLeftPoint.y << ' '
-                << topRightPoint.x << ',' << topRightPoint.y << " is a triangle"
-                << std::endl;
       auto sideV = p1.y - bottomLeftPoint.y;
       auto sideH = p2.x - bottomLeftPoint.x;
       S_ij = sideV * sideH * 1 / 2;
@@ -141,18 +137,12 @@ double intersectionArea(Point bottomLeftPoint, Point topRightPoint) {
     // If gird rectangle without interception (complement of interception) is a
     // triangle
     if ((p1OnHor | p1InCorner) && (p2OnVert | p2InCorner)) {
-      std::cout << bottomLeftPoint.x << ',' << bottomLeftPoint.y << ' '
-                << topRightPoint.x << ',' << topRightPoint.y
-                << " complement is a triangle" << std::endl;
       auto sideV = topRightPoint.x - p1.x;
       auto sideH = topRightPoint.y - p2.y;
       S_ij = h1 * h2 - sideV * sideH * 1 / 2;
     }
     // If S_ij is a trapezoid with a vertical bases
     if (p1OnVert && p2OnVert) {
-      std::cout << bottomLeftPoint.x << ',' << bottomLeftPoint.y << ' '
-                << topRightPoint.x << ',' << topRightPoint.y
-                << " is a trapezoid with vertical bases" << std::endl;
       auto h = bottomRightPoint.x - bottomLeftPoint.x;
       auto base1 = p2.y - bottomRightPoint.y;
       auto base2 = p1.y - bottomLeftPoint.y;
@@ -160,9 +150,6 @@ double intersectionArea(Point bottomLeftPoint, Point topRightPoint) {
     }
     // If S_ij is a trapezoid with a horizontal bases
     if (p1OnHor && p2OnHor) {
-      std::cout << bottomLeftPoint.x << ',' << bottomLeftPoint.y << ' '
-                << topRightPoint.x << ',' << topRightPoint.y
-                << " is a trapezoid with a horizontal bases" << std::endl;
       auto h = topLeftPoint.y - bottomLeftPoint.y;
       auto base1 = p1.x - topLeftPoint.x;
       auto base2 = p2.x - bottomLeftPoint.x;
@@ -262,15 +249,7 @@ void calculateW(const std::vector<std::vector<double>> &a,
 
     // Update W after all computations
     W = newW;
-    // Output the result
-    std::cout << "Residuals:\n";
-    for (int i = 0; i <= M; i++) {
-      for (int j = 0; j <= N; j++) {
-        std::cout << std::fixed << std::setprecision(4) << r[i][j] << " ";
-      }
-      std::cout << std::endl;
-    }
-    std::cout << std::endl;
+
     // Check for convergence
     if (maxChange < tolerance) {
       break;
