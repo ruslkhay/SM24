@@ -18,8 +18,6 @@ void linear::computeA(std::vector<std::vector<double>> &a) {
       Point P_ij_next = {P_ij.x, P_ij.y + h2};
 
       double lv_ij = verticalShiftLen(P_ij, P_ij_next);
-      // std::cout << "lv" << i+1 << j+1 << '=' << lv_ij << " h2=" << h2 <<
-      // std::endl;
       if (lv_ij == h2) {
         a[i][j] = 1;
       } else {
@@ -43,8 +41,6 @@ void linear::computeB(std::vector<std::vector<double>> &b) {
       Point P_ji_next = {P_ij.x + h1, P_ij.y};
 
       double lh_ij = horizontalShiftLen(P_ij, P_ji_next);
-      // std::cout << "lh" << i+1 << j+1 << '=' <<lh_ij << " h1=" << h1 << "
-      // eps=" << eps << std::endl;
       if (lh_ij == h1) {
         b[i][j] = 1;
       } else {
@@ -95,6 +91,8 @@ void linear::calculateW(const std::vector<std::vector<double>> &a,
 
   std::vector<std::vector<double>> r(M + 1, std::vector<double>(N + 1, 0.0));
   std::vector<std::vector<double>> Ar(M + 1, std::vector<double>(N + 1, 0.0));
+  std::vector<std::vector<double>> diffs(M + 1,
+                                         std::vector<double>(N + 1, 0.0));
   // Perform the iterative steepest descent
   for (int iter = 0; iter < maxIterations; iter++) {
     std::vector<std::vector<double>> newW = W;
@@ -128,16 +126,17 @@ void linear::calculateW(const std::vector<std::vector<double>> &a,
       }
     }
     // Step of descend
-    double theta = product(r, r, h1, h2) / product(Ar, r, h1, h2);
+    double tau = product(r, r, h1, h2) / product(Ar, r, h1, h2);
     for (int i = 0; i < M - 1; i++) {
       for (int j = 0; j < N - 1; j++) {
         int I = i + 1;
         int J = j + 1;
-        newW[I][J] = W[I][J] - theta * r[I][J];
-        // Track the maximum change
-        maxChange = std::max(maxChange, std::abs(newW[i][j] - W[i][j]));
+        newW[I][J] = W[I][J] - tau * r[I][J];
+        diffs[I][J] = tau * r[I][J];
       }
     }
+
+    maxChange = std::max(maxChange, std::sqrt(product(diffs, diffs, h1, h2)));
     // Update W after all computations
     W = newW;
     // Check for convergence

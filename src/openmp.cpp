@@ -15,7 +15,7 @@ void computeA(std::vector<std::vector<double>> &a, int TN) {
 
   omp_set_dynamic(0);      // Explicitly disable dynamic teams
   omp_set_num_threads(TN); // Set number of threads
-#pragma omp parallel for
+#pragma omp parallel for collapse(2)
   for (int i = 0; i < M; i++) {
     for (int j = 0; j < N - 1; j++) {
       // Node coordinates
@@ -41,7 +41,7 @@ void computeB(std::vector<std::vector<double>> &b, int TN) {
 
   omp_set_dynamic(0);      // Explicitly disable dynamic teams
   omp_set_num_threads(TN); // Set number of threads
-#pragma omp parallel for
+#pragma omp parallel for collapse(2)
   for (int i = 0; i < M - 1; i++) {
     for (int j = 0; j < N; j++) {
       // Node coordinates
@@ -66,14 +66,59 @@ void computeF(std::vector<std::vector<double>> &F, int TN) {
 
   omp_set_dynamic(0);      // Explicitly disable dynamic teams
   omp_set_num_threads(TN); // Set number of threads
-#pragma omp parallel for
+#pragma omp parallel for collapse(2)
   for (int i = 0; i < M - 1; i++) {
     for (int j = 0; j < N - 1; j++) {
       // Node coordinates
       Point P_ij = {(i + 0.5) * h1, (j + 0.5) * h2};
       Point P_ij_diag = {P_ij.x + h1, P_ij.y + h2};
 
-      F[i][j] = intersectionArea(P_ij, P_ij_diag);
+      F[i][j] = intersectionArea(P_ij, P_ij_diag) / (h1 * h2);
+    }
+  }
+}
+
+void computeJointABF(std::vector<std::vector<double>> &a,
+                     std::vector<std::vector<double>> &b,
+                     std::vector<std::vector<double>> &F, int TN) {
+  int M = F.size() + 1;
+  int N = F[0].size() + 1;
+  double h1 = 3.0 / M;
+  double h2 = 3.0 / N;
+  double eps = std::pow(std::max(h1, h2), 2);
+
+  omp_set_dynamic(0);      // Explicitly disable dynamic teams
+  omp_set_num_threads(TN); // Set number of threads
+#pragma omp parallel for collapse(2)
+  for (int i = 0; i < M; i++) {
+    for (int j = 0; j < N; j++) {
+      // b
+      Point P_ij = {(i + 0.5) * h1, (j + 0.5) * h2};
+      if (i != M - 1) {
+        Point P_ji_right = {P_ij.x + h1, P_ij.y};
+        double lh_ij = horizontalShiftLen(P_ij, P_ji_right);
+        if (lh_ij == h1) {
+          b[i][j] = 1;
+        } else {
+          b[i][j] = lh_ij / h1 + (1 - lh_ij / h1) * (1 / eps);
+        }
+      }
+      // Node coordinates
+      if (j == N - 1) {
+        continue;
+      } // a
+      Point P_ij_top = {P_ij.x, P_ij.y + h2};
+      double lv_ij = verticalShiftLen(P_ij, P_ij_top);
+      if (lv_ij == h2) {
+        a[i][j] = 1;
+      } else {
+        a[i][j] = lv_ij / h2 + (1 - lv_ij / h2) * (1 / eps);
+      }
+      if (i == M - 1) {
+        continue;
+      }
+      Point P_ij_diag = {P_ij.x + h1, P_ij.y + h2};
+      F[i][j] = intersectionArea(P_ij, P_ij_diag) / (h1 * h2);
     }
   }
 }
@@ -83,8 +128,8 @@ double product(std::vector<std::vector<double>> &v1,
                int TN) {
   double res = 0;
 
-  omp_set_dynamic(0);      // Explicitly disable dynamic teams
-  omp_set_num_threads(TN); // Set number of threads
+  // omp_set_dynamic(0);      // Explicitly disable dynamic teams
+  // omp_set_num_threads(TN); // Set number of threads
 #pragma omp parallel for reduction(+ : res)
   for (int i = 0; i < static_cast<int>(v1.size()); i++) {
     for (int j = 0; j < static_cast<int>(v1[0].size()); j++) {
@@ -109,13 +154,13 @@ void calculateW(const std::vector<std::vector<double>> &a,
 
   std::vector<std::vector<double>> r(M + 1, std::vector<double>(N + 1, 0.0));
   std::vector<std::vector<double>> Ar(M + 1, std::vector<double>(N + 1, 0.0));
-
+  std::vector<std::vector<double>> diffs(M + 1,
+                                         std::vector<double>(N + 1, 0.0));
   for (int iter = 0; iter < maxIterations; iter++) {
     std::vector<std::vector<double>> newW = W;
     double maxChange = 0.0;
-
 // Get residuals
-#pragma omp parallel for
+#pragma omp parallel for collapse(2)
     for (int i = 0; i < M - 1; i++) {
       for (int j = 0; j < N - 1; j++) {
         // Calculate the finite difference terms
@@ -131,7 +176,7 @@ void calculateW(const std::vector<std::vector<double>> &a,
     }
 
 // Get Ar
-#pragma omp parallel for
+#pragma omp parallel for collapse(2)
     for (int i = 0; i < M - 1; i++) {
       for (int j = 0; j < N - 1; j++) {
         int I = i + 1;
@@ -147,24 +192,20 @@ void calculateW(const std::vector<std::vector<double>> &a,
     }
 
     // Step of descend
-    double theta = product(r, r, h1, h2) / product(Ar, r, h1, h2);
+    double tau = product(r, r, h1, h2) / product(Ar, r, h1, h2);
 
-#pragma omp parallel for
+#pragma omp parallel for collapse(2)
     for (int i = 0; i < M - 1; i++) {
       for (int j = 0; j < N - 1; j++) {
         int I = i + 1;
         int J = j + 1;
-        newW[I][J] = W[I][J] - theta * r[I][J];
-// Track the maximum change
-#pragma omp critical
-        maxChange = std::max(
-            maxChange, std::abs(newW[I][J] - W[I][J])); // fix: access to newW
+        newW[I][J] = W[I][J] - tau * r[I][J];
+        diffs[I][J] = tau * r[I][J];
       }
     }
-
+    maxChange = std::max(maxChange, std::sqrt(product(diffs, diffs, h1, h2)));
     // Update W after all computations
     W = newW;
-
     // Check for convergence
     if (maxChange < tolerance) {
       break;
