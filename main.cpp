@@ -8,7 +8,8 @@
 #include <omp.h>
 
 int main() {
-  auto NMs = {std::pair(10, 10), std::pair(20, 20), std::pair(40, 40)};
+  auto NMs = {std::pair<int, int>(10, 10), std::pair<int, int>(20, 20),
+              std::pair<int, int>(40, 40)};
 
   int maxIterations = 1e5;
   double tolerance = 1e-6;
