@@ -8,8 +8,10 @@ authors = [
 dependencies = [
     "pre-commit",
     "doit",
-    "plotly",
+    "tomli",
     "numpy",
+    "plotly",
+    "kaleido==0.2.0",
 ]
 requires-python = "==3.10.*"
 readme = "README.md"
