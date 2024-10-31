@@ -70,7 +70,8 @@ of the domain $D$ and the rectangle $\Pi$. The latter means that in each point
 $(x_0, y_0) \in \gamma \cap \Pi$ the following equality must hold:
 
 ```math
-\lim_{D \ni (x,y) \to (x_0,y_0)} (W(x, y), n(x_0, y_0)) = \lim_{\hat{D} \ni (x,y) \to (x_0,y_0)}(W(x, y), n(x_0, y_0)),
+\lim_{D \ni (x,y) \to (x_0,y_0)} (W(x, y), n(x_0, y_0)) = 
+\lim_{\hat{D} \ni (x,y) \to (x_0,y_0)}(W(x, y), n(x_0, y_0)),
 \tag{5}
 ```
 

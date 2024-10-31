@@ -2,12 +2,33 @@
 #include "src/linear.hpp"
 #include "src/openmp.hpp"
 #include <chrono>
+#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <omp.h>
 
 int main() {
+
+  // Specify the name of the directory to create in the build folder
+  const std::string buildFolder =
+      "."; // Replace with your build folder path if needed
+  const std::string dirName =
+      "output"; // Change this to your desired directory name
+  const std::filesystem::path dirPath =
+      std::filesystem::path(buildFolder) / dirName;
+
+  // Check if the directory already exists
+  if (!std::filesystem::exists(dirPath)) {
+    // Create the directory
+    if (std::filesystem::create_directory(dirPath)) {
+      std::cout << "Reports are stored in: " << dirPath << std::endl;
+    } else {
+      std::cerr << "Failed to create directory: " << dirPath << std::endl;
+    }
+  } else {
+    std::cout << "Reports are stored in: " << dirPath << std::endl;
+  }
   auto NMs = {std::pair<int, int>(10, 10), std::pair<int, int>(20, 20),
               std::pair<int, int>(40, 40)};
 
@@ -21,8 +42,10 @@ int main() {
     std::vector<std::vector<double>> F(M - 1, std::vector<double>(N - 1, 0.0));
     std::vector<std::vector<double>> W(M + 1, std::vector<double>(N + 1, 0.0));
 
-    std::ofstream solutionFile("linear_" + std::to_string(M) + '_' +
-                               std::to_string(N) + ".txt");
+    std::string fileName =
+        "linear_" + std::to_string(M) + '_' + std::to_string(N) + ".txt";
+
+    std::ofstream solutionFile(dirPath / fileName);
 
     auto begin = std::chrono::high_resolution_clock::now();
     linear::computeA(a);
@@ -68,9 +91,10 @@ int main() {
     std::vector<std::vector<double>> F(M - 1, std::vector<double>(N - 1, 0.0));
     std::vector<std::vector<double>> W(M + 1, std::vector<double>(N + 1, 0.0));
 
-    std::ofstream solutionFile("openmp_" + std::to_string(M) + '_' +
-                               std::to_string(N) + "_TN" +
-                               std::to_string(threadNum) + ".txt");
+    auto fileName = "openmp_" + std::to_string(M) + '_' + std::to_string(N) +
+                    "_TN" + std::to_string(threadNum) + ".txt";
+
+    std::ofstream solutionFile(dirPath / fileName);
 
     auto start = omp_get_wtime();
     computeJointABF(a, b, F, threadNum);
