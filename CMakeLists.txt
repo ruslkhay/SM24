@@ -7,9 +7,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # Find OpenMP package
 find_package(OpenMP REQUIRED)
-# if (OPENMP_FOUND)
-#     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-# endif()
+if (OPENMP_FOUND)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+endif()
+
+find_package(MPI REQUIRED) #make it REQUIRED, if you want
+# include_directories(SYSTEM ${MPI_INCLUDE_PATH})
 
 # Specify the directories for include files
 include_directories(src)
@@ -39,3 +42,13 @@ add_executable(main main.cpp)
 target_sources(main PRIVATE ${SRC_FILES} )
 target_link_libraries(main PRIVATE "${OpenMP_CXX_FLAGS}")
 target_compile_options(main PRIVATE "${OpenMP_CXX_FLAGS}")
+
+add_executable(pomp PolusOpenMP.cpp)
+target_sources(pomp PRIVATE ${SRC_FILES} )
+target_link_libraries(pomp PRIVATE "${OpenMP_CXX_FLAGS}")
+target_compile_options(pomp PRIVATE "${OpenMP_CXX_FLAGS}")
+
+add_executable(mpi mainMPI.cpp)
+target_sources(mpi PRIVATE ${SRC_FILES} )
+target_link_libraries(mpi PUBLIC MPI::MPI_CXX)
+# target_link_libraries(mpi PRIVATE ${MPI_CXX_LIBRARIES})
