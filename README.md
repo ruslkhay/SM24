@@ -42,3 +42,4 @@ The goal is to build accurate and parallel solution, using **OpenMP** and
 3. [Method for Solving Systems of Linear Algebraic Equations](docs/math_model.md)
 4. [OpenMP implementation](docs/omp.md)
 5. [Solution plots](docs/sol_images.md)
+6. [MPI implementation](docs/mpi.md)
