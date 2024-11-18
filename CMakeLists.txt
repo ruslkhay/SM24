@@ -37,16 +37,10 @@ enable_cxx_compiler_flag_if_supported("-g")
 enable_cxx_compiler_flag_if_supported("-Wall")
 enable_cxx_compiler_flag_if_supported("-Werror")
 
-
 add_executable(main main.cpp)
 target_sources(main PRIVATE ${SRC_FILES} )
 target_link_libraries(main PRIVATE "${OpenMP_CXX_FLAGS}")
 target_compile_options(main PRIVATE "${OpenMP_CXX_FLAGS}")
-
-add_executable(pomp PolusOpenMP.cpp)
-target_sources(pomp PRIVATE ${SRC_FILES} )
-target_link_libraries(pomp PRIVATE "${OpenMP_CXX_FLAGS}")
-target_compile_options(pomp PRIVATE "${OpenMP_CXX_FLAGS}")
 
 add_executable(mpi mainMPI.cpp)
 target_sources(mpi PRIVATE ${SRC_FILES} )
