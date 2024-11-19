@@ -52,17 +52,27 @@ void debugSendPrint(const std::array<std::array<int, M>, N> &grid,
   }
   message += "  And sending it to process " + std::to_string(nextRank) + "\n";
   message += "----------\n";
-  std::cout << message << std::endl;
+  std::cout << message;
+}
+
+void debugReceivePrint(int storage[], const int currRank, const int prevRank,
+                       std::pair<int, int> buffSize) {
+  auto message = std::string("<< Process ");
+  message = message + std::to_string(currRank) + " received from " +
+            std::to_string(prevRank) + "\n";
+  for (int i = 0; i < buffSize.first * buffSize.second; i++) {
+    if (i % buffSize.first == 0) {
+      message = message + "\n ";
+    }
+    message = message + std::to_string(storage[i]) + "| ";
+  }
+  message = message + "\n==========\n";
+  std::cout << message;
 }
 
 const int M = 5, N = 5;
 std::array<std::array<int, M>, N> grid = {1, 1, 1, 1, 9, 2, 2, 2, 2, 8, 3, 3, 3,
                                           3, 7, 4, 4, 4, 4, 6, 5, 5, 5, 5, 0};
-// for (int i = 0; i < M; i++) {
-//   for (int j = 0; j < N; j++) {
-//     grid[i][j] = rand() % std::max(M, N); // Random values
-//   }
-// }
 
 int main(int argc, char **argv) {
   int rank, size;
@@ -85,95 +95,87 @@ int main(int argc, char **argv) {
     std::cout << "\n";
   }
   MPI_Barrier(MPI_COMM_WORLD);
+  std::pair<int, int> buffSize(0, 0);
+  int nextRank = (rank + 1) % size;
+  int prevRank = rank == 0 ? size - 1 : rank - 1;
 
   // Distribute the data accordingly
   if (rank == 0) {
-    int nextRank = 1;
+    // int nextRank = 1;
     int x0 = 0, xM = xMiddle, y0 = 0, yN = N - yMiddle;
     debugSendPrint(grid, rank, nextRank, x0, xM, y0, yN);
     auto tmpBuf = prepareSubGrid(grid, x0, xM, y0, yN);
-    int count = (xM - x0) * (yN - y0);
-    MPI_Send(&tmpBuf[0], count, MPI_INT, nextRank, 0, MPI_COMM_WORLD);
+    buffSize.first = xM - x0;
+    buffSize.second = yN - y0;
+    MPI_Send(&buffSize, 2, MPI_INT, nextRank, 1, MPI_COMM_WORLD);
+    MPI_Send(&tmpBuf[0], buffSize.first * buffSize.second, MPI_INT, nextRank, 0,
+             MPI_COMM_WORLD);
     delete[] tmpBuf;
   } else if (rank == 1) {
-    int nextRank = 0;
+    // int nextRank = 0;
     int x0 = 0, xM = xMiddle, y0 = N - yMiddle, yN = N;
     debugSendPrint(grid, rank, nextRank, x0, xM, y0, yN);
     auto tmpBuf = prepareSubGrid(grid, x0, xM, y0, yN);
-    int count = (xM - x0) * (yN - y0);
-    MPI_Send(&tmpBuf[0], count, MPI_INT, nextRank, 0, MPI_COMM_WORLD);
+    buffSize.first = xM - x0;
+    buffSize.second = yN - y0;
+    MPI_Send(&buffSize, 2, MPI_INT, nextRank, 1, MPI_COMM_WORLD);
+    MPI_Send(&tmpBuf[0], buffSize.first * buffSize.second, MPI_INT, nextRank, 0,
+             MPI_COMM_WORLD);
     delete[] tmpBuf;
   } else if (rank == 2) {
-    int nextRank = 2;
+    // int nextRank = 2;
     int x0 = xMiddle, xM = M, y0 = N - yMiddle, yN = N;
     debugSendPrint(grid, rank, nextRank, x0, xM, y0, yN);
     auto tmpBuf = prepareSubGrid(grid, x0, xM, y0, yN);
-    int count = (xM - x0) * (yN - y0);
-    MPI_Send(&tmpBuf[0], count, MPI_INT, nextRank, 0, MPI_COMM_WORLD);
+    buffSize.first = xM - x0;
+    buffSize.second = yN - y0;
+    MPI_Send(&buffSize, 2, MPI_INT, nextRank, 1, MPI_COMM_WORLD);
+    MPI_Send(&tmpBuf[0], buffSize.first * buffSize.second, MPI_INT, nextRank, 0,
+             MPI_COMM_WORLD);
     delete[] tmpBuf;
   } else if (rank == 3) {
-    int nextRank = 3;
     int x0 = xMiddle, xM = M, y0 = 0, yN = N - yMiddle;
-    debugSendPrint(grid, rank, nextRank, xMiddle, M, 0, N - yMiddle);
-    auto tmpBuf = prepareSubGrid(grid, xMiddle, M, 0, N - yMiddle);
-    int count = (xM - x0) * (yN - y0);
-    MPI_Send(&tmpBuf[0], count, MPI_INT, nextRank, 0, MPI_COMM_WORLD);
+
+    debugSendPrint(grid, rank, nextRank, x0, xM, y0, yN);
+    auto tmpBuf = prepareSubGrid(grid, x0, xM, y0, yN);
+    buffSize.first = xM - x0;
+    buffSize.second = yN - y0;
+    MPI_Send(&buffSize, 2, MPI_INT, nextRank, 1, MPI_COMM_WORLD);
+    MPI_Send(&tmpBuf[0], buffSize.first * buffSize.second, MPI_INT, nextRank, 0,
+             MPI_COMM_WORLD);
     delete[] tmpBuf;
   }
 
   // Now each process should receive its respective sub-grid
   if (rank == 1) {
-    int prevRank = 0;
-    int first[2][3]; // Process 0
-    MPI_Recv(&first, 2 * 3, MPI_INT, prevRank, 0, MPI_COMM_WORLD,
-             MPI_STATUS_IGNORE);
-    printf("<< Process %d received:\n", rank);
-    for (int i = 0; i < 2; i++) {
-      for (int j = 0; j < 3; j++) {
-        printf("%4d", first[i][j]);
-      }
-      printf("\n");
-    }
-    std::cout << "----------\n";
+    // int prevRank = 0;
+    std::pair<int, int> bS;
+    MPI_Recv(&bS, 2, MPI_INT, prevRank, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    int storage[bS.first * bS.second];
+    MPI_Recv(&storage, bS.first * bS.second, MPI_INT, prevRank, 0,
+             MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    debugReceivePrint(storage, rank, prevRank, bS);
   } else if (rank == 0) {
-    int prevRank = 1;
-    int second[3][3]; // Process 1
-    MPI_Recv(&second, 3 * 3, MPI_INT, prevRank, 0, MPI_COMM_WORLD,
-             MPI_STATUS_IGNORE);
-    printf("<< Process %d received:\n", rank);
-    for (int i = 0; i < 3; i++) {
-      for (int j = 0; j < 3; j++) {
-        printf("%4d", second[i][j]);
-      }
-      printf("\n");
-    }
-    std::cout << "----------\n";
+    std::pair<int, int> bS;
+    MPI_Recv(&bS, 2, MPI_INT, prevRank, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    int storage[bS.first * bS.second];
+    MPI_Recv(&storage, bS.first * bS.second, MPI_INT, prevRank, 0,
+             MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    debugReceivePrint(storage, rank, prevRank, bS);
   } else if (rank == 2) {
-    int prevRank = 2;
-    int third[3][2];
-    MPI_Recv(&third, 3 * 2, MPI_INT, prevRank, 0, MPI_COMM_WORLD,
-             MPI_STATUS_IGNORE);
-    printf("<< Process %d received:\n", rank);
-    for (int i = 0; i < 3; i++) {
-      for (int j = 0; j < 2; j++) {
-        printf("%4d", third[i][j]);
-      }
-      printf("\n");
-    }
-    std::cout << "----------\n";
+    std::pair<int, int> bS;
+    MPI_Recv(&bS, 2, MPI_INT, prevRank, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    int storage[bS.first * bS.second];
+    MPI_Recv(&storage, bS.first * bS.second, MPI_INT, prevRank, 0,
+             MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    debugReceivePrint(storage, rank, prevRank, bS);
   } else if (rank == 3) {
-    int prevRank = 3;
-    int fourth[2][2];
-    MPI_Recv(&fourth, 2 * 2, MPI_INT, prevRank, 0, MPI_COMM_WORLD,
-             MPI_STATUS_IGNORE);
-    printf("<< Process %d received:\n", rank);
-    for (int i = 0; i < 2; i++) {
-      for (int j = 0; j < 2; j++) {
-        printf("%4d", fourth[i][j]);
-      }
-      printf("\n");
-    }
-    std::cout << "----------\n";
+    std::pair<int, int> bS;
+    MPI_Recv(&bS, 2, MPI_INT, prevRank, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    int storage[bS.first * bS.second];
+    MPI_Recv(&storage, bS.first * bS.second, MPI_INT, prevRank, 0,
+             MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    debugReceivePrint(storage, rank, prevRank, bS);
   }
   // Finalize the MPI environment
   MPI_Finalize();
