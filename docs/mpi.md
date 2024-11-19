@@ -31,6 +31,26 @@ row of green area. Then initialize values for third area **2** with side right
 column of red area. Then use orange top row to initialize values for last,
 blue area **3**.
 
+Even process would send first, odd - receive.
+Notion: BV - bottom values, TV - top values, RV - right values,
+LV - left values, additional B in beginning correspond to "boarder"
+
+So work should be done in the next manure:
+
+0. Calculate solution -> send BV to 1 -> send RV to 3 ->
+receive BRV from 3 -> receive BBV from 1 -> calculate solution ->
+send data to master process
+2. Calculate solution -> send TV to 3 -> send LV to 1 ->
+receive BTV from 3 -> receive BLV from 1 -> calculate solution ->
+send data to master process
+
+1. Receive BTV from 0 -> receive BRV from 2 -> calculate solution -> 
+send TV to 0 -> send RV to 2 ->
+send data to master process
+3. (MASTER) Receive BLV from 0 -> receive BTV from 2 -> calculate solution -> 
+send BV to 2 -> send LV to 0 -> receive data from other processes ->
+save solution to txt file
+
 <img src="static/MPI_connection_4_dark.svg">
 
 ### Example
