@@ -10,42 +10,24 @@
 4. Calculate
 */
 
-template <std::size_t M, std::size_t N>
-int *prepareSubGrid(std::array<std::array<int, M>, N> &grid, int x0, int xM,
-                    int y0, int yN) {
-  int count = (xM - x0) * (yN - y0);
-  int *tmpBuf = new int[count];
-  for (int i = y0; i < yN; ++i) {
-    for (int j = x0; j < xM; ++j) {
-      tmpBuf[(i - y0) * (xM - x0) + (j - x0)] = grid[i][j];
+void debugReceivePrint(int storage[], const int currRank, const int prevRank,
+                       std::pair<int, int> buffSize) {
+  auto message = std::string("<< Process ");
+  message = message + std::to_string(currRank) + " received from " +
+            std::to_string(prevRank) + "\n";
+  for (int i = 0; i < buffSize.first * buffSize.second; i++) {
+    if (i == 0) {
+      message = message + " ";
+    } else if (i % buffSize.first == 0) {
+      message = message + "\n ";
     }
+    message = message + std::to_string(storage[i]) + "| ";
   }
-  return tmpBuf;
+  message = message + "\n==========\n";
+  std::cout << message;
 }
 
-std::array<int, 4> GetLimits(int rank, int M, int N) {
-  const int xMiddle = M / 2 + 1, yMiddle = N / 2 + 1;
-  int x0 = 0, xM = 0, y0 = 0, yN = 0;
-  switch (rank) {
-  case 0:
-    x0 = 0, xM = xMiddle, y0 = 0, yN = N - yMiddle;
-    break;
-  case 1:
-    x0 = 0, xM = xMiddle, y0 = N - yMiddle, yN = N;
-    break;
-  case 2:
-    x0 = xMiddle, xM = M, y0 = N - yMiddle, yN = N;
-    break;
-  case 3:
-    x0 = xMiddle, xM = M, y0 = 0, yN = N - yMiddle;
-    break;
-  }
-  std::array<int, 4> limits{x0, xM, y0, yN};
-  return limits;
-}
-
-template <std::size_t M, std::size_t N>
-void debugSendPrint(const std::array<std::array<int, M>, N> &grid,
+void debugSendPrint(const std::vector<std::vector<int>> &grid,
                     const int currRank, const int nextRank, int x0, int xM,
                     int y0, int yN) {
   auto message =
@@ -76,48 +58,70 @@ void debugSendPrint(const std::array<std::array<int, M>, N> &grid,
   std::cout << message;
 }
 
-void debugReceivePrint(int storage[], const int currRank, const int prevRank,
-                       std::pair<int, int> buffSize) {
-  auto message = std::string("<< Process ");
-  message = message + std::to_string(currRank) + " received from " +
-            std::to_string(prevRank) + "\n";
-  for (int i = 0; i < buffSize.first * buffSize.second; i++) {
-    if (i == 0) {
-      message = message + " ";
-    } else if (i % buffSize.first == 0) {
-      message = message + "\n ";
-    }
-    message = message + std::to_string(storage[i]) + "| ";
+std::array<int, 4> GetLimits(int rank, int M, int N) {
+  const int xMiddle = M / 2 + 1, yMiddle = N / 2 + 1;
+  int x0 = 0, xM = 0, y0 = 0, yN = 0;
+  switch (rank) {
+  case 0:
+    x0 = 0, xM = xMiddle, y0 = 0, yN = N - yMiddle;
+    break;
+  case 1:
+    x0 = 0, xM = xMiddle, y0 = N - yMiddle, yN = N;
+    break;
+  case 2:
+    x0 = xMiddle, xM = M, y0 = N - yMiddle, yN = N;
+    break;
+  case 3:
+    x0 = xMiddle, xM = M, y0 = 0, yN = N - yMiddle;
+    break;
   }
-  message = message + "\n==========\n";
-  std::cout << message;
+  std::array<int, 4> limits{x0, xM, y0, yN};
+  return limits;
 }
 
-template <std::size_t W, std::size_t L>
-void Send(std::array<std::array<int, W>, L> &grid, int rank, int nextRank,
-          int M, int N) {
+std::vector<std::vector<int>>
+prepareSubGrid(std::vector<std::vector<int>> &grid, int x0, int xM, int y0,
+               int yN) {
+  std::vector<std::vector<int>> tmpBuf(yN - y0, std::vector<int>(xM - x0, 0));
+  for (int i = y0; i < yN; ++i) {
+    for (int j = x0; j < xM; ++j) {
+      tmpBuf[i - y0][j - x0] = grid[i][j];
+    }
+  }
+  return tmpBuf;
+}
+
+void Send(std::vector<std::vector<int>> &grid, int rank, int nextRank, int M,
+          int N) {
   auto [x0, xM, y0, yN] = GetLimits(rank, M, N);
   debugSendPrint(grid, rank, nextRank, x0, xM, y0, yN);
   auto tmpBuf = prepareSubGrid(grid, x0, xM, y0, yN);
   std::pair<int, int> buffSize(xM - x0, yN - y0);
+
   MPI_Send(&buffSize, 2, MPI_INT, nextRank, 1, MPI_COMM_WORLD);
-  MPI_Send(&tmpBuf[0], buffSize.first * buffSize.second, MPI_INT, nextRank, 0,
-           MPI_COMM_WORLD);
-  delete[] tmpBuf;
+  // MPI_Send(&tmpBuf[0][0], buffSize.first * buffSize.second, MPI_INT,
+  // nextRank, 0,
+  MPI_Send(&tmpBuf[0][0], buffSize.first, MPI_INT, nextRank, 0, MPI_COMM_WORLD);
 }
 
 void Receive(int rank, int prevRank, int M, int N) {
   std::pair<int, int> bS;
   MPI_Recv(&bS, 2, MPI_INT, prevRank, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-  int storage[bS.first * bS.second];
-  MPI_Recv(&storage, bS.first * bS.second, MPI_INT, prevRank, 0, MPI_COMM_WORLD,
+  // int storage[bS.first * bS.second];
+  int storage[bS.first];
+  // MPI_Recv(&storage, bS.first * bS.second, MPI_INT, prevRank, 0,
+  // MPI_COMM_WORLD,
+  MPI_Recv(&storage, bS.first, MPI_INT, prevRank, 0, MPI_COMM_WORLD,
            MPI_STATUS_IGNORE);
   debugReceivePrint(storage, rank, prevRank, bS);
 }
 
 const int M = 5, N = 5;
-std::array<std::array<int, M>, N> grid = {1, 1, 1, 1, 9, 2, 2, 2, 2, 8, 3, 3, 3,
-                                          3, 7, 4, 4, 4, 4, 6, 5, 5, 5, 5, 0};
+std::vector<std::vector<int>> grid = {{1, 1, 1, 1, 9},
+                                      {2, 2, 2, 2, 8},
+                                      {3, 3, 3, 3, 7},
+                                      {4, 4, 4, 4, 6},
+                                      {5, 5, 5, 5, 0}};
 
 int main(int argc, char **argv) {
   int rank, size;
