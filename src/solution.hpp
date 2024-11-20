@@ -15,17 +15,17 @@ public:
   Grid(int M, int N, double h1, double h2);
   Grid(const std::vector<std::vector<double>> &grid);
 
-  std::vector<double> GetLeftBoarder();
-  std::vector<double> GetRightBoarder();
-  std::vector<double> GetTopBoarder();
-  std::vector<double> GetBottomBoarder();
-
   std::vector<double> GetColumn(int m);
   std::vector<double> GetRow(int n);
 
-  std::vector<std::vector<double>> GetNodes();
-  int GetM();
-  int GetN();
+  std::vector<double> GetLeftBoarder() { return GetRow(0); };
+  std::vector<double> GetRightBoarder() { return GetRow(_N - 1); };
+  std::vector<double> GetTopBoarder() { return GetColumn(0); };
+  std::vector<double> GetBottomBoarder() { return GetColumn(_M - 1); };
+
+  inline std::vector<std::vector<double>> GetNodes() { return _nodes; }
+  inline int GetM() { return _M; }
+  inline int GetN() { return _N; }
 
   void SetLeftBoarder(const std::vector<double> &newBoarder);
   void SetRightBoarder(const std::vector<double> &newBoarder);
@@ -55,26 +55,6 @@ inline void Grid::SetRightBoarder(const std::vector<double> &newBoarder) {
   }
 }
 
-inline std::vector<double> Grid::GetTopBoarder() { return _nodes[0]; }
-
-inline std::vector<double> Grid::GetBottomBoarder() { return _nodes[_M - 1]; }
-
-inline std::vector<double> Grid::GetLeftBoarder() {
-  std::vector<double> res(_M);
-  for (int i = 0; i < _M; ++i) {
-    res[i] = _nodes[i][0];
-  }
-  return res;
-}
-
-inline std::vector<double> Grid::GetRightBoarder() {
-  std::vector<double> res(_M);
-  for (int i = 0; i < _M; ++i) {
-    res[i] = _nodes[i][_N - 1];
-  }
-  return res;
-}
-
 inline std::vector<double> Grid::GetColumn(int m) { return _nodes[m]; }
 
 inline std::vector<double> Grid::GetRow(int n) {
@@ -84,10 +64,6 @@ inline std::vector<double> Grid::GetRow(int n) {
   }
   return res;
 }
-
-inline std::vector<std::vector<double>> Grid::GetNodes() { return _nodes; }
-inline int Grid::GetM() { return _M; }
-inline int Grid::GetN() { return _N; }
 
 inline void Grid::Print() {
   std::string message;
