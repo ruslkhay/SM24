@@ -1,8 +1,10 @@
+#include "src/solution.hpp"
 #include <algorithm>
 #include <cstdlib>
 #include <mpi.h>
 #include <stdio.h>
 #include <vector>
+
 /*
 1. Give each process corresponding sub-areas. Therefore implement algorithm
 2. Calculate solution in sub-area
@@ -10,7 +12,8 @@
 4. Calculate
 */
 
-void debugReceivePrint(int storage[], const int currRank, const int prevRank,
+template <class T>
+void debugReceivePrint(T storage[], const int currRank, const int prevRank,
                        std::pair<int, int> buffSize) {
   auto message = std::string("<< Process ");
   message = message + std::to_string(currRank) + " received from " +
@@ -58,7 +61,22 @@ void debugSendPrint(const std::vector<std::vector<int>> &grid,
   std::cout << message;
 }
 
-std::array<int, 4> GetLimits(int rank, int M, int N) {
+std::array<int, 4> GetLimitsTwoProc(int rank, int M, int N) {
+  const int xMiddle = M / 2 + 1;
+  int x0 = 0, xM = 0;
+  switch (rank) {
+  case 0:
+    x0 = 0, xM = xMiddle;
+    break;
+  case 1:
+    x0 = M - xMiddle, xM = M;
+    break;
+  }
+  std::array<int, 4> limits{x0, xM, 0, N};
+  return limits;
+}
+
+std::array<int, 4> GetLimitsFourProc(int rank, int M, int N) {
   const int xMiddle = M / 2 + 1, yMiddle = N / 2 + 1;
   int x0 = 0, xM = 0, y0 = 0, yN = 0;
   switch (rank) {
@@ -79,49 +97,55 @@ std::array<int, 4> GetLimits(int rank, int M, int N) {
   return limits;
 }
 
-std::vector<std::vector<int>>
+std::array<int, 4> GetSectors(int procNum, int rank, int M, int N) {
+  switch (procNum) {
+  case 2:
+    return GetLimitsTwoProc(rank, M, N);
+  case 4:
+    return GetLimitsFourProc(rank, M, N);
+  default:
+    throw std::invalid_argument("Only 1, 2 or 4 processes could be launched\n");
+  }
+}
+std::vector<std::vector<double>>
 prepareSubGrid(std::vector<std::vector<int>> &grid, int x0, int xM, int y0,
                int yN) {
-  std::vector<std::vector<int>> tmpBuf(yN - y0, std::vector<int>(xM - x0, 0));
+  std::vector<std::vector<double>> tmpBuf(yN - y0,
+                                          std::vector<double>(xM - x0, 0));
   for (int i = y0; i < yN; ++i) {
     for (int j = x0; j < xM; ++j) {
-      tmpBuf[i - y0][j - x0] = grid[i][j];
+      tmpBuf[i - y0][j - x0] = 1.0 * grid[i][j];
     }
   }
   return tmpBuf;
 }
 
-void Send(std::vector<std::vector<int>> &grid, int rank, int nextRank, int M,
-          int N) {
-  auto [x0, xM, y0, yN] = GetLimits(rank, M, N);
+void Send(std::vector<std::vector<int>> &grid, int procNum, int rank,
+          int nextRank, int M, int N) {
+  auto [x0, xM, y0, yN] = GetSectors(procNum, rank, M, N);
   debugSendPrint(grid, rank, nextRank, x0, xM, y0, yN);
-  auto tmpBuf = prepareSubGrid(grid, x0, xM, y0, yN);
-  std::pair<int, int> buffSize(xM - x0, yN - y0);
-
+  auto tmpBuf = Grid(prepareSubGrid(grid, x0, xM, y0, yN));
+  std::pair<int, int> buffSize(tmpBuf.GetM(), 1);
   MPI_Send(&buffSize, 2, MPI_INT, nextRank, 1, MPI_COMM_WORLD);
-  // MPI_Send(&tmpBuf[0][0], buffSize.first * buffSize.second, MPI_INT,
-  // nextRank, 0,
-  MPI_Send(&tmpBuf[0][0], buffSize.first, MPI_INT, nextRank, 0, MPI_COMM_WORLD);
+  MPI_Send(&(tmpBuf.GetRightBoarder())[0], buffSize.first, MPI_DOUBLE, nextRank,
+           0, MPI_COMM_WORLD);
 }
 
 void Receive(int rank, int prevRank, int M, int N) {
   std::pair<int, int> bS;
   MPI_Recv(&bS, 2, MPI_INT, prevRank, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-  // int storage[bS.first * bS.second];
-  int storage[bS.first];
-  // MPI_Recv(&storage, bS.first * bS.second, MPI_INT, prevRank, 0,
-  // MPI_COMM_WORLD,
-  MPI_Recv(&storage, bS.first, MPI_INT, prevRank, 0, MPI_COMM_WORLD,
+  double storage[bS.first];
+  MPI_Recv(&storage, bS.first, MPI_DOUBLE, prevRank, 0, MPI_COMM_WORLD,
            MPI_STATUS_IGNORE);
   debugReceivePrint(storage, rank, prevRank, bS);
 }
 
 const int M = 5, N = 5;
-std::vector<std::vector<int>> grid = {{1, 1, 1, 1, 9},
-                                      {2, 2, 2, 2, 8},
-                                      {3, 3, 3, 3, 7},
-                                      {4, 4, 4, 4, 6},
-                                      {5, 5, 5, 5, 0}};
+std::vector<std::vector<int>> grid = {{1, 1, -1, 1, 9},
+                                      {2, 2, -2, 2, 8},
+                                      {3, 3, -3, 3, 7},
+                                      {4, 4, -4, 4, 6},
+                                      {5, 5, -5, 5, 0}};
 
 int main(int argc, char **argv) {
   int rank, size;
@@ -148,11 +172,11 @@ int main(int argc, char **argv) {
   int prevRank = rank == 0 ? size - 1 : rank - 1;
   // Communicate processes
   if (rank % 2 == 0) {
-    Send(grid, rank, nextRank, M, N);
+    Send(grid, size, rank, nextRank, M, N);
     Receive(rank, prevRank, M, N);
   } else {
     Receive(rank, prevRank, M, N);
-    Send(grid, rank, nextRank, M, N);
+    Send(grid, size, rank, nextRank, M, N);
   }
   // Finalize the MPI environment
   MPI_Finalize();
