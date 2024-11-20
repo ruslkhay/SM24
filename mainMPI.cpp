@@ -106,9 +106,7 @@ void Send(std::array<std::array<int, W>, L> &grid, int rank, int nextRank,
   delete[] tmpBuf;
 }
 
-template <std::size_t W, std::size_t L>
-void Receive(std::array<std::array<int, W>, L> &grid, int rank, int prevRank,
-             int M, int N) {
+void Receive(int rank, int prevRank, int M, int N) {
   std::pair<int, int> bS;
   MPI_Recv(&bS, 2, MPI_INT, prevRank, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
   int storage[bS.first * bS.second];
@@ -147,9 +145,9 @@ int main(int argc, char **argv) {
   // Communicate processes
   if (rank % 2 == 0) {
     Send(grid, rank, nextRank, M, N);
-    Receive(grid, rank, prevRank, M, N);
+    Receive(rank, prevRank, M, N);
   } else {
-    Receive(grid, rank, prevRank, M, N);
+    Receive(rank, prevRank, M, N);
     Send(grid, rank, nextRank, M, N);
   }
   // Finalize the MPI environment
