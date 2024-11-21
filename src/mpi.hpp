@@ -7,7 +7,7 @@
 void debugReceivePrint(const std::vector<double> &storage, const int currRank,
                        const int prevRank, std::pair<int, int> buffSize);
 
-void debugSendPrint(const std::vector<std::vector<int>> &grid,
+void debugSendPrint(const std::vector<std::vector<double>> &grid,
                     const int currRank, const int nextRank, int x0, int xM,
                     int y0, int yN);
 
@@ -18,5 +18,5 @@ std::array<int, 4> GetLimitsFourProc(int rank, int M, int N);
 std::array<int, 4> GetSectors(int procNum, int rank, int M, int N);
 
 std::vector<std::vector<double>>
-prepareSubGrid(std::vector<std::vector<int>> &grid, int x0, int xM, int y0,
-               int yN);
+prepareSubGrid(const std::vector<std::vector<double>> &grid, int x0, int xM,
+               int y0, int yN);

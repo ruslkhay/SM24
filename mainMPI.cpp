@@ -13,11 +13,10 @@
 4. Calculate
 */
 
-void Send(std::vector<std::vector<int>> &grid, int procNum, int rank,
-          int nextRank, int M, int N) {
-  auto [x0, xM, y0, yN] = GetSectors(procNum, rank, M, N);
-  debugSendPrint(grid, rank, nextRank, x0, xM, y0, yN);
-  auto tmpBuf = Grid(prepareSubGrid(grid, x0, xM, y0, yN));
+void Send(Grid grid, int procNum, int rank, int nextRank) {
+  auto [x0, xM, y0, yN] = GetSectors(procNum, rank, grid.GetM(), grid.GetN());
+  debugSendPrint(grid.GetNodes(), rank, nextRank, x0, xM, y0, yN);
+  auto tmpBuf = Grid(prepareSubGrid(grid.GetNodes(), x0, xM, y0, yN));
   std::pair<int, int> buffSize(tmpBuf.GetM(), 1);
   MPI_Send(&buffSize, 2, MPI_INT, nextRank, 1, MPI_COMM_WORLD);
   MPI_Send(&(tmpBuf.GetRightBoarder())[0], buffSize.first, MPI_DOUBLE, nextRank,
@@ -35,11 +34,8 @@ void Receive(int rank, int prevRank, int M, int N) {
 }
 
 const int M = 5, N = 5;
-std::vector<std::vector<int>> grid = {{1, 1, -1, 1, 9},
-                                      {2, 2, -2, 2, 8},
-                                      {3, 3, -3, 3, 7},
-                                      {4, 4, -4, 4, 6},
-                                      {5, 5, -5, 5, 0}};
+// auto grid = Grid(M, N);
+auto solution = Solution(M, N, 100000, 1e-5);
 
 int main(int argc, char **argv) {
   int rank, size;
@@ -48,17 +44,25 @@ int main(int argc, char **argv) {
   MPI_Comm_size(MPI_COMM_WORLD, &size);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-  // Fill data for grid only in process 0
+  // // Fill data for grid only in process 0
+  // if (rank == size - 1) {
+  //   // Display original grid values
+  //   printf("\nOriginal grid values:\n");
+  //   for (int i = 0; i < M; i++) {
+  //     for (int j = 0; j < N; j++) {
+  //       printf("%4d", grid[i][j]);
+  //     }
+  //     printf("\n");
+  //   }
+  //   std::cout << "\n";
+  // }
   if (rank == size - 1) {
-    // Display original grid values
     printf("\nOriginal grid values:\n");
-    for (int i = 0; i < M; i++) {
-      for (int j = 0; j < N; j++) {
-        printf("%4d", grid[i][j]);
-      }
-      printf("\n");
-    }
-    std::cout << "\n";
+    solution.Print();
+    auto method = sMethod::lin;
+    solution.Find(method);
+    printf("\nCalculated grid values:\n");
+    solution.Print();
   }
   MPI_Barrier(MPI_COMM_WORLD);
   std::pair<int, int> buffSize(0, 0);
@@ -66,11 +70,14 @@ int main(int argc, char **argv) {
   int prevRank = rank == 0 ? size - 1 : rank - 1;
   // Communicate processes
   if (rank % 2 == 0) {
-    Send(grid, size, rank, nextRank, M, N);
+    // Send(grid, size, rank, nextRank, M, N);
+    solution.Print();
+    Send(solution, size, rank, nextRank);
     Receive(rank, prevRank, M, N);
   } else {
     Receive(rank, prevRank, M, N);
-    Send(grid, size, rank, nextRank, M, N);
+    Send(solution, size, rank, nextRank);
+    // Send(grid, size, rank, nextRank, M, N);
   }
   // Finalize the MPI environment
   MPI_Finalize();

@@ -17,7 +17,7 @@ void debugReceivePrint(const std::vector<double> &storage, const int currRank,
   std::cout << message;
 }
 
-void debugSendPrint(const std::vector<std::vector<int>> &grid,
+void debugSendPrint(const std::vector<std::vector<double>> &grid,
                     const int currRank, const int nextRank, int x0, int xM,
                     int y0, int yN) {
   auto message =
@@ -95,8 +95,8 @@ std::array<int, 4> GetSectors(int procNum, int rank, int M, int N) {
   }
 }
 std::vector<std::vector<double>>
-prepareSubGrid(std::vector<std::vector<int>> &grid, int x0, int xM, int y0,
-               int yN) {
+prepareSubGrid(const std::vector<std::vector<double>> &grid, int x0, int xM,
+               int y0, int yN) {
   std::vector<std::vector<double>> tmpBuf(yN - y0,
                                           std::vector<double>(xM - x0, 0));
   for (int i = y0; i < yN; ++i) {
