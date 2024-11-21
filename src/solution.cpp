@@ -1,6 +1,8 @@
-#include <filesystem>
-#include <fstream>
-#include <solution.hpp>
+#include "solution.hpp"
+#include "auxility.hpp"
+#include "linear.hpp"
+#include "omp.h"
+#include "openmp.hpp"
 
 Grid::Grid(int M, int N) {
   _M = M;
@@ -8,41 +10,48 @@ Grid::Grid(int M, int N) {
   _h1 =
       3.0 / M; // 3.0 is a number specific for my task (size of outer rectangle)
   _h2 = 3.0 / N;
-  _nodes.assign(M, line_t(N, 0));
+  _nodes.assign(_M + 1, line_t(_N + 1, 0));
 }
 
 Grid::Grid(const matrix_t &grid) {
   _nodes = grid;
-  _M = grid.size();
-  _N = grid[0].size();
+  _M = grid.size() - 1;
+  _N = grid[0].size() - 1;
 }
 
-class Solution : public Grid {
-  using time_t = std::chrono::microseconds;
-
-private:
-  std::filesystem::path _dirPath;
-  int _maxIterations;
-  time_t _execTime = time_t::duration::zero();
-  double _tolerance;
-  void CreateOutputDir(std::string buildDir = ".",
-                       std::string outputDirName = "output");
-
-public:
-  Solution(int M, int N, int maxIterations, double tolerance);
-  void SaveToFile(std::string fileName);
-  void Find();
+Solution::Solution(int M, int N, int maxIterations, double tolerance)
+    : Grid(M, N) // +1 because if M = 3 => 4 nodes on X axis
+{
+  _maxIterations = maxIterations;
+  _tolerance = tolerance;
+  _a.assign(_M, line_t(_N - 1, 0));
+  _b.assign(_M - 1, line_t(_N, 0));
+  _F.assign(_M - 1, line_t(_N - 1, 0));
 };
 
-Solution::Solution(int M, int N, int maxIterations, double tolerance)
-    : Grid(M + 1, N + 1) // +1 because if M = 3 => 4 nodes on X axis
-{};
-
-void Solution::Find() {
-  auto start = std::chrono::high_resolution_clock::now();
-  /* Calculations here */
-  auto stop = std::chrono::high_resolution_clock::now();
-  _execTime += std::chrono::duration_cast<time_t>(stop - start);
+void Solution::Find(sMethod method, int threads) {
+  _threads = threads;
+  switch (method) {
+  case lin: {
+    auto start = std::chrono::high_resolution_clock::now();
+    linear::computeA(_a);
+    linear::computeB(_b);
+    linear::computeF(_F);
+    linear::calculateW(_a, _b, _F, _nodes, _maxIterations, _tolerance);
+    auto stop = std::chrono::high_resolution_clock::now();
+    _execTime = std::chrono::duration_cast<time_t>(stop - start);
+  } break;
+  case omp: {
+    auto start = omp_get_wtime();
+    computeJointABF(_a, _b, _F, threads);
+    calculateW(_a, _b, _F, _nodes, _maxIterations, _tolerance, threads);
+    auto stop = omp_get_wtime();
+    _execTime = std::chrono::duration_cast<time_t>(
+        std::chrono::duration<double>(stop - start));
+  } break;
+  case mpi:
+    break;
+  }
 };
 
 void Solution::CreateOutputDir(std::string buildDir,
@@ -65,12 +74,13 @@ void Solution::CreateOutputDir(std::string buildDir,
 
 void Solution::SaveToFile(std::string fileName) {
   CreateOutputDir();
-  fileName =
-      fileName + "_" + std::to_string(_M) + '_' + std::to_string(_N) + ".txt";
+  fileName = fileName + "_" + std::to_string(_M) + '_' + std::to_string(_N) +
+             '_' + std::to_string(_threads) + ".txt";
 
   std::ofstream solutionFile(_dirPath / fileName);
   solutionFile << "Solution (" << _N << "," << _M << ")"
-               << " Linear took " << _execTime.count() << " microsecs:\n\n";
+               << " on " << _threads << " threads"
+               << " took " << _execTime.count() << " microsecs:\n\n";
   // Output the result
   for (int i = 0; i <= _M; i++) {
     for (int j = 0; j <= _N; j++) {
