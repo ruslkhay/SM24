@@ -1,3 +1,4 @@
+#pragma once
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -18,15 +19,16 @@ public:
   using line_t = std::vector<double>;
   using matrix_t = std::vector<line_t>;
   Grid(int M, int N);
+  Grid(int M, int N, double x0, double y0, double h1, double h2);
   Grid(const matrix_t &grid);
 
   line_t GetColumn(int m);
   line_t GetRow(int n);
 
   line_t GetLeftBoarder() { return GetRow(0); };
-  line_t GetRightBoarder() { return GetRow(_N - 1); };
+  line_t GetRightBoarder() { return GetRow(_N); };
   line_t GetTopBoarder() { return GetColumn(0); };
-  line_t GetBottomBoarder() { return GetColumn(_M - 1); };
+  line_t GetBottomBoarder() { return GetColumn(_M); };
 
   inline matrix_t GetNodes() { return _nodes; }
   inline int GetM() { return _M; }
@@ -42,6 +44,7 @@ public:
 protected:
   int _M;
   int _N;
+  int _x0, _y0;
   double _h1; // horizontal step
   double _h2; // vertical step
   matrix_t _nodes;
@@ -54,6 +57,9 @@ public:
   Solution(int M, int N, int maxIterations, double tolerance);
   void SaveToFile(std::string fileName);
   void Find(sMethod method, int threads = 1);
+  void ComputeA();
+  void ComputeB();
+  void ComputeF();
 
 private:
   int _maxIterations;
@@ -64,6 +70,7 @@ private:
   matrix_t _a;
   matrix_t _b;
   matrix_t _F;
+  double _eps;
 
   std::filesystem::path _dirPath;
   void CreateOutputDir(std::string buildDir = ".",
@@ -93,7 +100,7 @@ inline void Grid::SetRightBoarder(const line_t &newBoarder) {
 inline Grid::line_t Grid::GetColumn(int m) { return _nodes[m]; }
 
 inline Grid::line_t Grid::GetRow(int n) {
-  line_t res(_M);
+  line_t res(_M + 1);
   for (int i = 0; i < _M + 1; ++i) {
     res[i] = _nodes[i][n];
   }

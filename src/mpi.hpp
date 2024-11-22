@@ -1,3 +1,5 @@
+#pragma once
+#include "solution.hpp"
 #include <array>
 #include <iostream>
 #include <string>

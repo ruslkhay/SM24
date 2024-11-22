@@ -3,6 +3,7 @@
 #include "linear.hpp"
 #include "omp.h"
 #include "openmp.hpp"
+#include <cmath>
 
 Grid::Grid(int M, int N) {
   _M = M;
@@ -19,11 +20,19 @@ Grid::Grid(const matrix_t &grid) {
   _N = grid[0].size() - 1;
 }
 
+// New
+Grid::Grid(int M, int N, double x0, double y0, double h1, double h2) {
+  _M = M, _N = N, _x0 = x0, _y0 = y0;
+  _h1 = h1, _h2 = h2;
+  _nodes.assign(_M + 1, line_t(_N + 1, 0));
+}
+
 Solution::Solution(int M, int N, int maxIterations, double tolerance)
     : Grid(M, N) // +1 because if M = 3 => 4 nodes on X axis
 {
   _maxIterations = maxIterations;
   _tolerance = tolerance;
+  _eps = std::pow(std::max(_h1, _h2), 2);
   _a.assign(_M, line_t(_N - 1, 0));
   _b.assign(_M - 1, line_t(_N, 0));
   _F.assign(_M - 1, line_t(_N - 1, 0));
@@ -90,3 +99,55 @@ void Solution::SaveToFile(std::string fileName) {
   }
   solutionFile.close();
 };
+
+void Solution::ComputeA() {
+  // double h1 = 3.0 / M;
+  // double h2 = 3.0 / N;
+  // Calculate values for each inner node
+  for (int i = 0; i < _M; i++) {
+    for (int j = 0; j < _N - 1; j++) {
+      // Node coordinates
+      Point P_ij = {(i + 0.5) * _h1 + _x0, (j + 0.5) * _h2 + _y0};
+      Point P_ij_next = {P_ij.x, P_ij.y + _h2};
+
+      double lv_ij = verticalShiftLen(P_ij, P_ij_next);
+      if (lv_ij == _h2) {
+        _a[i][j] = 1;
+      } else {
+        _a[i][j] = lv_ij / _h2 + (1 - lv_ij / _h2) * (1 / _eps);
+      }
+    }
+  }
+}
+
+void Solution::ComputeB() {
+  // Calculate values for each inner node
+  for (int i = 0; i < _M - 1; i++) {
+    for (int j = 0; j < _N; j++) {
+      // Node coordinates
+      Point P_ij = {(i + 0.5) * _h1 + _x0, (j + 0.5) * _h2 + _y0};
+      Point P_ji_next = {P_ij.x + _h1, P_ij.y};
+
+      double lh_ij = horizontalShiftLen(P_ij, P_ji_next);
+      if (lh_ij == _h1) {
+        _b[i][j] = 1;
+      } else {
+        _b[i][j] = lh_ij / _h1 + (1 - lh_ij / _h1) * (1 / _eps);
+      }
+    }
+  }
+}
+
+void Solution::ComputeF() {
+  // Calculate values for each inner node
+  for (int i = 0; i < _M - 1; i++) {
+    for (int j = 0; j < _N - 1; j++) {
+      // Node coordinates
+      Point P_ij = {(i + 0.5) * _h1 + _x0, (j + 0.5) * _h2 + _y0};
+      Point P_ij_diag = {P_ij.x + _h1, P_ij.y + _h2};
+
+      _F[i][j] =
+          intersectionArea(P_ij, P_ij_diag) / (_h1 * _h2); // f(x*, y*) = 1
+    }
+  }
+}

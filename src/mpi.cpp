@@ -99,6 +99,7 @@ prepareSubGrid(const std::vector<std::vector<double>> &grid, int x0, int xM,
                int y0, int yN) {
   std::vector<std::vector<double>> tmpBuf(yN - y0,
                                           std::vector<double>(xM - x0, 0));
+  // printf("(%d; %d), (%d, %d)\n", x0, xM, y0, yN);
   for (int i = y0; i < yN; ++i) {
     for (int j = x0; j < xM; ++j) {
       tmpBuf[i - y0][j - x0] = 1.0 * grid[i][j];
