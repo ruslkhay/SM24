@@ -43,13 +43,6 @@ void debugSendPrint(const std::vector<std::vector<double>> &grid,
     }
     message += '\n';
   }
-  // for (int i = y0; i < yN; ++i) {
-  //   for (int j = x0; j < xM; ++j) {
-  //     message += std::to_string(grid[i][j]);
-  //     message += "|";
-  //   }
-  //   message += '\n';
-  // }
   message += "  And sending [";
   for (auto elem : boarder) {
     message += std::to_string(elem) + " ";
@@ -60,7 +53,8 @@ void debugSendPrint(const std::vector<std::vector<double>> &grid,
 }
 
 std::array<int, 4> GetLimitsTwoProc(int rank, int M, int N) {
-  const int xMiddle = M / 2 + 1;
+  // + 1 appears because I've chosen specific splitting for 2 proc case
+  const int xMiddle = (M + 1) / 2 + 1;
   int x0 = 0, xM = 0;
   switch (rank) {
   case 0:
@@ -75,7 +69,9 @@ std::array<int, 4> GetLimitsTwoProc(int rank, int M, int N) {
 }
 
 std::array<int, 4> GetLimitsFourProc(int rank, int M, int N) {
-  const int xMiddle = M / 2 + 1, yMiddle = N / 2 + 1;
+  const int xMiddle = (M + 1) / 2, yMiddle = (N + 1) / 2;
+  // TODO: Check if it works correct (old version below)
+  // const int xMiddle = M / 2 + 1, yMiddle = N / 2 + 1;
   int x0 = 0, xM = 0, y0 = 0, yN = 0;
   switch (rank) {
   case 0:
@@ -110,8 +106,8 @@ prepareSubGrid(const std::vector<std::vector<double>> &grid, int x0, int xM,
                int y0, int yN) {
   std::vector<std::vector<double>> tmpBuf(xM - x0,
                                           std::vector<double>(yN - y0, 0));
-  printf("(%d; %d), (%d, %d)\n", x0, xM, y0, yN);
-  printf("tmpgrid size: (%lu; %lu)\n", tmpBuf.size(), tmpBuf[0].size());
+  // printf("(%d; %d), (%d, %d)\n", x0, xM, y0, yN);
+  // printf("tmpgrid size: (%lu; %lu)\n", tmpBuf.size(), tmpBuf[0].size());
   for (int i = x0; i < xM; ++i) {
     for (int j = y0; j < yN; ++j) {
       tmpBuf[i - x0][j - y0] = 1.0 * grid[i][j];

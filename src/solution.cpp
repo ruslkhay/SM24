@@ -27,7 +27,7 @@ Grid::Grid(int M, int N, double x0, double y0, double h1, double h2) {
   _nodes.assign(_M + 1, line_t(_N + 1, 0));
 }
 
-Solution::Solution(int M, int N, double h1, double h2, double x0, double y0,
+Solution::Solution(int M, int N, double x0, double y0, double h1, double h2,
                    int maxIterations, double tolerance)
     : Grid(M, N, x0, y0, h1, h2) // +1 because if M = 3 => 4 nodes on X axis
 {
@@ -44,9 +44,12 @@ void Solution::Find(sMethod method, int threads) {
   switch (method) {
   case lin: {
     auto start = std::chrono::high_resolution_clock::now();
-    linear::computeA(_a);
-    linear::computeB(_b);
-    linear::computeF(_F);
+    // linear::computeA(_a);
+    ComputeA();
+    ComputeB();
+    // linear::computeB(_b);
+    ComputeF();
+    // linear::computeF(_F);
     linear::calculateW(_a, _b, _F, _nodes, _maxIterations, _tolerance);
     auto stop = std::chrono::high_resolution_clock::now();
     _execTime = std::chrono::duration_cast<time_t>(stop - start);
@@ -101,21 +104,40 @@ void Solution::SaveToFile(std::string fileName) {
   solutionFile.close();
 };
 
+// void Solution::ComputeA() {
+//   // Calculate values for each inner node
+//   for (int i = 0; i < _M; i++) {
+//     for (int j = 0; j < _N - 1; j++) {
+//       Point P_ij = {(i + 0.5 + _x0) * _h1, (j + 0.5 + _y0) * _h2};
+//       Point P_ij_next = {P_ij.x, P_ij.y + _h2};
+
+//       double lv_ij = verticalShiftLen(P_ij, P_ij_next);
+//       if (lv_ij == _h2) {
+//         _a[i][j] = 1;
+//       } else {
+//         _a[i][j] = lv_ij / _h2 + (1 - lv_ij / _h2) * (1 / _eps);
+//       }
+//     }
+//   }
+// }
+
 void Solution::ComputeA() {
-  // double h1 = 3.0 / M;
-  // double h2 = 3.0 / N;
+  double h1 = _h1;
+  // double h1 = 3.0 / _M;
+  double h2 = _h2;
+  // double h2 = 3.0 / _N;
   // Calculate values for each inner node
   for (int i = 0; i < _M; i++) {
     for (int j = 0; j < _N - 1; j++) {
       // Node coordinates
-      Point P_ij = {(i + 0.5) * _h1 + _x0, (j + 0.5) * _h2 + _y0};
-      Point P_ij_next = {P_ij.x, P_ij.y + _h2};
+      Point P_ij = {(i + 0.5 + _x0) * h1, (j + 0.5 + _y0) * h2};
+      Point P_ij_next = {P_ij.x, P_ij.y + h2};
 
       double lv_ij = verticalShiftLen(P_ij, P_ij_next);
-      if (lv_ij == _h2) {
+      if (lv_ij == h2) {
         _a[i][j] = 1;
       } else {
-        _a[i][j] = lv_ij / _h2 + (1 - lv_ij / _h2) * (1 / _eps);
+        _a[i][j] = lv_ij / h2 + (1 - lv_ij / h2) * (1 / _eps);
       }
     }
   }
@@ -126,7 +148,7 @@ void Solution::ComputeB() {
   for (int i = 0; i < _M - 1; i++) {
     for (int j = 0; j < _N; j++) {
       // Node coordinates
-      Point P_ij = {(i + 0.5) * _h1 + _x0, (j + 0.5) * _h2 + _y0};
+      Point P_ij = {(i + 0.5 + _x0) * _h1, (j + 0.5 + _y0) * _h2};
       Point P_ji_next = {P_ij.x + _h1, P_ij.y};
 
       double lh_ij = horizontalShiftLen(P_ij, P_ji_next);
@@ -144,7 +166,7 @@ void Solution::ComputeF() {
   for (int i = 0; i < _M - 1; i++) {
     for (int j = 0; j < _N - 1; j++) {
       // Node coordinates
-      Point P_ij = {(i + 0.5) * _h1 + _x0, (j + 0.5) * _h2 + _y0};
+      Point P_ij = {(i + 0.5 + _x0) * _h1, (j + 0.5 + _y0) * _h2};
       Point P_ij_diag = {P_ij.x + _h1, P_ij.y + _h2};
 
       _F[i][j] =

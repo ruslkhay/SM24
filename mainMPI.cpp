@@ -13,25 +13,7 @@
 4. Calculate
 */
 
-void Send(Grid grid, int procNum, int rank, int nextRank) {
-  auto [x0, xM, y0, yN] =
-      GetSectors(procNum, rank, grid.GetM() + 1, grid.GetN() + 1);
-
-  // printf("(%d; %d), (%d, %d)\n", x0, xM, y0, yN);
-  auto tmpBuf = Grid(prepareSubGrid(grid.GetNodes(), x0, xM, y0, yN));
-  if (rank) {
-    std::cout << "Here " << rank << '\n' << std::endl;
-  }
-  auto boardVals = tmpBuf.GetRightBoarder();
-
-  std::cout << "Sub-grid:\n";
-  tmpBuf.Print();
-  // for (auto elem: boardVals){
-  //   std::cout << elem << ' ';
-  // }
-  // std::cout << std::endl;
-
-  debugSendPrint(tmpBuf.GetNodes(), rank, nextRank, x0, xM, y0, yN, boardVals);
+void Send(Grid::line_t boardVals, int procNum, int rank, int nextRank) {
 
   std::pair<int, int> buffSize(boardVals.size(), 1);
   MPI_Send(&buffSize, 2, MPI_INT, nextRank, 1, MPI_COMM_WORLD);
@@ -40,7 +22,7 @@ void Send(Grid grid, int procNum, int rank, int nextRank) {
            MPI_COMM_WORLD);
 }
 
-void Receive(int rank, int prevRank) {
+void _Receive(int rank, int prevRank) {
   std::pair<int, int> bS;
   MPI_Recv(&bS, 2, MPI_INT, prevRank, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
   std::vector<double> storage(bS.first);
@@ -49,17 +31,22 @@ void Receive(int rank, int prevRank) {
   debugReceivePrint(storage, rank, prevRank, bS);
 }
 
-const int M = 4, N = 4;
+Grid::line_t Receive(int rank, int prevRank) {
+  std::pair<int, int> bS;
+  MPI_Recv(&bS, 2, MPI_INT, prevRank, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+  Grid::line_t storage(bS.first);
+  MPI_Recv(&storage[0], bS.first, MPI_DOUBLE, prevRank, 0, MPI_COMM_WORLD,
+           MPI_STATUS_IGNORE);
+  debugReceivePrint(storage, rank, prevRank, bS);
+  return storage;
+}
+
+// const int M = 4, N = 4;
+const int M = 10, N = 10;
+const int maxIter = 1e5;
+const double tolerance = 1e-6;
 const double h1 = 3.0 / M, h2 = 3.0 / N;
 auto method = sMethod::lin;
-// std::vector<std::vector<double>> grid = {
-//     {1., 2., 3., 4., -1.}, {1., 2., 3., 4., -1.},
-//     {9., 8., 7., 6., -5.}, {11., 12., 13., 14., -11.},
-//     {29., 28., 27., 26., -25.},
-//     };
-// auto solution = Grid(grid);
-// // auto grid = Grid(M, N);
-// // auto solution = Solution(M, N, 100000, 1e-5);
 
 int main(int argc, char **argv) {
   int rank, size;
@@ -75,27 +62,32 @@ int main(int argc, char **argv) {
 
   // Communicate processes
   if (rank % 2 == 0) {
-    int x0 = 0, y0 = 0;
-    auto solution = Solution(M, N, h1, h2, x0, y0, 100000, 1e-4);
-    // std::cout << "Original: \n";
-    // solution.Print();
+    auto [x0, xM, y0, yN] = GetSectors(size, rank, M, N);
+    auto solution =
+        Solution(xM - x0, yN - y0, x0, y0, h1, h2, maxIter, tolerance);
     solution.Find(method);
-    // std::cout << "Solution: \n";
-    // solution.Print();
-    // Send(grid, size, rank, nextRank, M, N);
-    Send(solution, size, rank, nextRank);
-    Receive(rank, prevRank);
+    auto boardVals = solution.GetRightBoarder();
+    debugSendPrint(solution.GetNodes(), rank, nextRank, x0, xM, y0, yN,
+                   boardVals);
+    Send(boardVals, size, rank, nextRank);
+    auto boarderVal = Receive(rank, prevRank);
+    // if (size == 2) {
+    //   solution.SetRightBoarder(boarderVal);
+    // }
   } else {
-    int x0 = 0, y0 = 0;
-    auto solution = Solution(M, N, h1, h2, x0, y0, 100000, 1e-4);
-    // std::cout << "Original: \n";
-    // solution.Print();
+    auto [x0, xM, y0, yN] = GetSectors(size, rank, M, N);
+    printf("(%d; %d), (%d, %d)\n", x0, xM, y0, yN);
+    auto solution =
+        Solution(xM - x0, yN - y0, x0, y0, h1, h2, maxIter, tolerance);
+    auto boarderVal = Receive(rank, prevRank);
+    // if (size == 2) {
+    //   solution.SetLeftBoarder(boarderVal);
+    // }
     solution.Find(method);
-    // std::cout << "Solution: \n";
-    // solution.Print();
-    Receive(rank, prevRank);
-    Send(solution, size, rank, nextRank);
-    // Send(grid, size, rank, nextRank, M, N);
+    auto boardVals = solution.GetRightBoarder();
+    debugSendPrint(solution.GetNodes(), rank, nextRank, x0, xM, y0, yN,
+                   boardVals);
+    Send(boardVals, size, rank, nextRank);
   }
   // Finalize the MPI environment
   MPI_Finalize();

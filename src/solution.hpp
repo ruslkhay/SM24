@@ -31,6 +31,8 @@ public:
   line_t GetRightBoarder() { return GetColumn(_M); };
 
   inline matrix_t GetNodes() { return _nodes; }
+  inline int GetH1() { return _h1; }
+  inline int GetH2() { return _h2; }
   inline int GetM() { return _M; }
   inline int GetN() { return _N; }
 
@@ -78,21 +80,21 @@ private:
                        std::string outputDirName = "output");
 };
 
-inline void Grid::SetTopBoarder(const line_t &newBoarder) {
+inline void Grid::SetLeftBoarder(const line_t &newBoarder) {
   _nodes[0] = newBoarder;
 }
 
-inline void Grid::SetBottomBoarder(const line_t &newBoarder) {
+inline void Grid::SetRightBoarder(const line_t &newBoarder) {
   _nodes[_M] = newBoarder;
 }
 
-inline void Grid::SetLeftBoarder(const line_t &newBoarder) {
+inline void Grid::SetTopBoarder(const line_t &newBoarder) {
   for (int i = 0; i < _M + 1; ++i) {
     _nodes[i][0] = newBoarder[i];
   }
 }
 
-inline void Grid::SetRightBoarder(const line_t &newBoarder) {
+inline void Grid::SetBottomBoarder(const line_t &newBoarder) {
   for (int i = 0; i < _M + 1; ++i) {
     _nodes[i][_N] = newBoarder[i];
   }
