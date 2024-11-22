@@ -36,13 +36,20 @@ void debugSendPrint(const std::vector<std::vector<double>> &grid,
     message += "  Top Right Sub-grid:\n";
     break;
   }
-  for (int i = y0; i < yN; ++i) {
-    for (int j = x0; j < xM; ++j) {
-      message += std::to_string(grid[i][j]);
+  for (int i = 0; i < static_cast<int>(grid[0].size()); ++i) {
+    for (auto col : grid) {
+      message += std::to_string(col[i]);
       message += "|";
     }
     message += '\n';
   }
+  // for (int i = y0; i < yN; ++i) {
+  //   for (int j = x0; j < xM; ++j) {
+  //     message += std::to_string(grid[i][j]);
+  //     message += "|";
+  //   }
+  //   message += '\n';
+  // }
   message += "  And sending [";
   for (auto elem : boarder) {
     message += std::to_string(elem) + " ";
@@ -101,12 +108,13 @@ std::array<int, 4> GetSectors(int procNum, int rank, int M, int N) {
 std::vector<std::vector<double>>
 prepareSubGrid(const std::vector<std::vector<double>> &grid, int x0, int xM,
                int y0, int yN) {
-  std::vector<std::vector<double>> tmpBuf(yN - y0,
-                                          std::vector<double>(xM - x0, 0));
-  // printf("(%d; %d), (%d, %d)\n", x0, xM, y0, yN);
-  for (int i = y0; i < yN; ++i) {
-    for (int j = x0; j < xM; ++j) {
-      tmpBuf[i - y0][j - x0] = 1.0 * grid[i][j];
+  std::vector<std::vector<double>> tmpBuf(xM - x0,
+                                          std::vector<double>(yN - y0, 0));
+  printf("(%d; %d), (%d, %d)\n", x0, xM, y0, yN);
+  printf("tmpgrid size: (%lu; %lu)\n", tmpBuf.size(), tmpBuf[0].size());
+  for (int i = x0; i < xM; ++i) {
+    for (int j = y0; j < yN; ++j) {
+      tmpBuf[i - x0][j - y0] = 1.0 * grid[i][j];
     }
   }
   return tmpBuf;

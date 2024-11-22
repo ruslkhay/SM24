@@ -25,10 +25,10 @@ public:
   line_t GetColumn(int m);
   line_t GetRow(int n);
 
-  line_t GetLeftBoarder() { return GetRow(0); };
-  line_t GetRightBoarder() { return GetRow(_N); };
-  line_t GetTopBoarder() { return GetColumn(0); };
-  line_t GetBottomBoarder() { return GetColumn(_M); };
+  line_t GetTopBoarder() { return GetRow(0); };
+  line_t GetBottomBoarder() { return GetRow(_N); };
+  line_t GetLeftBoarder() { return GetColumn(0); };
+  line_t GetRightBoarder() { return GetColumn(_M); };
 
   inline matrix_t GetNodes() { return _nodes; }
   inline int GetM() { return _M; }
@@ -110,8 +110,9 @@ inline Grid::line_t Grid::GetRow(int n) {
 
 inline void Grid::Print() {
   std::string message;
-  for (int i = 0; i < _M + 1; ++i) {
-    for (int j = 0; j < _N + 1; ++j) {
+  // Take specific index for each column
+  for (int j = 0; j < _N + 1; ++j) {
+    for (int i = 0; i < _M + 1; ++i) {
       message += std::to_string(_nodes[i][j]) + "|";
     }
     message += '\n';

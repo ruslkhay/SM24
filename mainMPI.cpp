@@ -17,10 +17,21 @@ void Send(Grid grid, int procNum, int rank, int nextRank) {
   auto [x0, xM, y0, yN] =
       GetSectors(procNum, rank, grid.GetM() + 1, grid.GetN() + 1);
 
+  // printf("(%d; %d), (%d, %d)\n", x0, xM, y0, yN);
   auto tmpBuf = Grid(prepareSubGrid(grid.GetNodes(), x0, xM, y0, yN));
+  if (rank) {
+    std::cout << "Here " << rank << '\n' << std::endl;
+  }
   auto boardVals = tmpBuf.GetRightBoarder();
 
-  debugSendPrint(grid.GetNodes(), rank, nextRank, x0, xM, y0, yN, boardVals);
+  std::cout << "Sub-grid:\n";
+  tmpBuf.Print();
+  // for (auto elem: boardVals){
+  //   std::cout << elem << ' ';
+  // }
+  // std::cout << std::endl;
+
+  debugSendPrint(tmpBuf.GetNodes(), rank, nextRank, x0, xM, y0, yN, boardVals);
 
   std::pair<int, int> buffSize(boardVals.size(), 1);
   MPI_Send(&buffSize, 2, MPI_INT, nextRank, 1, MPI_COMM_WORLD);
@@ -29,14 +40,12 @@ void Send(Grid grid, int procNum, int rank, int nextRank) {
            MPI_COMM_WORLD);
 }
 
-void Receive(int rank, int prevRank, int M, int N) {
+void Receive(int rank, int prevRank) {
   std::pair<int, int> bS;
   MPI_Recv(&bS, 2, MPI_INT, prevRank, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-
   std::vector<double> storage(bS.first);
   MPI_Recv(&storage[0], bS.first, MPI_DOUBLE, prevRank, 0, MPI_COMM_WORLD,
            MPI_STATUS_IGNORE);
-
   debugReceivePrint(storage, rank, prevRank, bS);
 }
 
@@ -59,31 +68,32 @@ int main(int argc, char **argv) {
   MPI_Comm_size(MPI_COMM_WORLD, &size);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-  // if (rank == 0) {
-  //   printf("\nOriginal grid values:\n");
-  //   solution.Print();
-  // }
-  // MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Barrier(MPI_COMM_WORLD);
   std::pair<int, int> buffSize(0, 0);
   int nextRank = (rank + 1) % size;
   int prevRank = rank == 0 ? size - 1 : rank - 1;
+
   // Communicate processes
   if (rank % 2 == 0) {
     int x0 = 0, y0 = 0;
     auto solution = Solution(M, N, h1, h2, x0, y0, 100000, 1e-4);
+    // std::cout << "Original: \n";
+    // solution.Print();
     solution.Find(method);
-    std::cout << "Solution: \n";
-    solution.Print();
+    // std::cout << "Solution: \n";
+    // solution.Print();
     // Send(grid, size, rank, nextRank, M, N);
     Send(solution, size, rank, nextRank);
-    Receive(rank, prevRank, M, N);
+    Receive(rank, prevRank);
   } else {
     int x0 = 0, y0 = 0;
     auto solution = Solution(M, N, h1, h2, x0, y0, 100000, 1e-4);
+    // std::cout << "Original: \n";
+    // solution.Print();
     solution.Find(method);
-    std::cout << "Solution: \n";
-    solution.Print();
-    Receive(rank, prevRank, M, N);
+    // std::cout << "Solution: \n";
+    // solution.Print();
+    Receive(rank, prevRank);
     Send(solution, size, rank, nextRank);
     // Send(grid, size, rank, nextRank, M, N);
   }
