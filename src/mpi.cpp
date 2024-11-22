@@ -19,7 +19,7 @@ void debugReceivePrint(const std::vector<double> &storage, const int currRank,
 
 void debugSendPrint(const std::vector<std::vector<double>> &grid,
                     const int currRank, const int nextRank, int x0, int xM,
-                    int y0, int yN) {
+                    int y0, int yN, const std::vector<double> &boarder) {
   auto message =
       std::string(">> Process " + std::to_string(currRank) + " doing:\n");
   switch (currRank) {
@@ -43,7 +43,11 @@ void debugSendPrint(const std::vector<std::vector<double>> &grid,
     }
     message += '\n';
   }
-  message += "  And sending it to process " + std::to_string(nextRank) + "\n";
+  message += "  And sending [";
+  for (auto elem : boarder) {
+    message += std::to_string(elem) + " ";
+  }
+  message += "] to process " + std::to_string(nextRank) + "\n";
   message += "----------\n";
   std::cout << message;
 }

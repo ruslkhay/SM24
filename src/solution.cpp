@@ -27,8 +27,9 @@ Grid::Grid(int M, int N, double x0, double y0, double h1, double h2) {
   _nodes.assign(_M + 1, line_t(_N + 1, 0));
 }
 
-Solution::Solution(int M, int N, int maxIterations, double tolerance)
-    : Grid(M, N) // +1 because if M = 3 => 4 nodes on X axis
+Solution::Solution(int M, int N, double h1, double h2, double x0, double y0,
+                   int maxIterations, double tolerance)
+    : Grid(M, N, x0, y0, h1, h2) // +1 because if M = 3 => 4 nodes on X axis
 {
   _maxIterations = maxIterations;
   _tolerance = tolerance;

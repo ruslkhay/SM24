@@ -54,7 +54,8 @@ class Solution : public Grid {
 public:
   using time_t = std::chrono::microseconds;
 
-  Solution(int M, int N, int maxIterations, double tolerance);
+  Solution(int M, int N, double h1, double h2, double x0, double y0,
+           int maxIterations, double tolerance);
   void SaveToFile(std::string fileName);
   void Find(sMethod method, int threads = 1);
   void ComputeA();

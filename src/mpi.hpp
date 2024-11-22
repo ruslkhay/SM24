@@ -11,7 +11,7 @@ void debugReceivePrint(const std::vector<double> &storage, const int currRank,
 
 void debugSendPrint(const std::vector<std::vector<double>> &grid,
                     const int currRank, const int nextRank, int x0, int xM,
-                    int y0, int yN);
+                    int y0, int yN, const std::vector<double> &boarderVal);
 
 std::array<int, 4> GetLimitsTwoProc(int rank, int M, int N);
 
