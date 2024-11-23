@@ -219,12 +219,11 @@ Grid Grid::Join(const std::vector<double> &flattened, eDir direction) {
   case bottom: // Adding from the bottom
     for (int i = 0; i < newM + 1; ++i) {
       for (int j = 0; j < newN + 1; ++j) {
-        // printf("i=%d, j=%d\n", i, j);
         if (j > newN - flatN) {
-          size_t flatIndex = i + (j - (newN - flatN + 1)) * (newM);
-          printf("flatIndex = %ld, flatten=%f\n", flatIndex,
-                 flattened[flatIndex]);
-          joinedGrid._nodes[i][j] = 2 * flattened[flatIndex];
+          size_t flatIndex = i * flatN + (j - (newN - flatN + 1));
+          // printf("flatIndex = %ld, flatten=%f\n", flatIndex,
+          //  flattened[flatIndex]);
+          joinedGrid._nodes[i][j] = 10 * flattened[flatIndex];
         } else {
           joinedGrid._nodes[i][j] = _nodes[i][j];
         }

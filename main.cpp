@@ -25,15 +25,15 @@ int main() {
     std::cout << "Initial grid:\n";
     s.Print();
     std::cout << "Flattened grid:\n";
-    auto flattened = s.Flatten(eDir::bottom);
-    // auto flattened = s.Flatten(eDir::top);
+    // auto flattened = s.Flatten(eDir::bottom);
+    auto flattened = s.Flatten(eDir::top);
     for (auto elem : flattened) {
       std::cout << elem << " ";
     }
     std::cout << std::endl;
     std::cout << std::endl;
-    auto r = s.Join(flattened, eDir::top);
-    // auto r = s.Join(flattened, eDir::bottom);
+    // auto r = s.Join(flattened, eDir::top);
+    auto r = s.Join(flattened, eDir::bottom);
     std::cout << "Joined grid:\n";
     r.Print();
     break;
