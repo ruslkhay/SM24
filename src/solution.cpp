@@ -238,19 +238,6 @@ Grid Grid::Join(const std::vector<double> &flattened, eDir direction) {
           size_t flatIndex = (i - (newM - flatM + 1)) * flatN + j;
           // printf("flatIndex = %ld, flatten=%f\n", flatIndex,
           //  flattened[flatIndex]);
-          joinedGrid._nodes[i][j] = 10 * flattened[flatIndex];
-        } else {
-          joinedGrid._nodes[i][j] = _nodes[i][j];
-        }
-      }
-    }
-    break;
-
-  case left: // Adding from the left
-    for (int i = 0; i < newM + 1; ++i) {
-      for (int j = 0; j < newN + 1; ++j) {
-        if (j > newN - flatN) {
-          size_t flatIndex = i * flatN + (j - (newN - flatN + 1));
           joinedGrid._nodes[i][j] = flattened[flatIndex];
         } else {
           joinedGrid._nodes[i][j] = _nodes[i][j];
@@ -259,11 +246,20 @@ Grid Grid::Join(const std::vector<double> &flattened, eDir direction) {
     }
     break;
 
-    // case right: // Adding from the right
-    //   for (int i = 0; i < rows; i++) {
-    //     _nodes[i][cols - 1] = flattened[i]; // Fill the right column
-    //   }
-    //   break;
+  case left: // Adding from the top
+    for (int i = 0; i < newM + 1; ++i) {
+      for (int j = 0; j < newN + 1; ++j) {
+        if (i < flatM) {
+          size_t flatIndex = i * flatN + j;
+          // printf("flatIndex = %ld, flatten=%f\n", flatIndex,
+          //  flattened[flatIndex]);
+          joinedGrid._nodes[i][j] = 10 * flattened[flatIndex];
+        } else {
+          joinedGrid._nodes[i][j] = _nodes[i - flatM + 1][j];
+        }
+      }
+    }
+    break;
   }
   return joinedGrid;
 }
