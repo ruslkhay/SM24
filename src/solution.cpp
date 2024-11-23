@@ -5,12 +5,29 @@
 #include "openmp.hpp"
 #include <cmath>
 
+// eDir GetOppositeDir(eDir direction){
+//   eDir dir;
+//   switch (direction)
+//   {
+//   case top:
+//     dir = bottom;
+//     break;
+//   case bottom:
+//     dir = top;
+//     break;
+//   case right:
+//     dir = left;
+//     break;
+//   case left:
+//     dir = right;
+//     break;
+//   }
+//   return dir;
+// };
+
 Grid::Grid(int M, int N) {
   _M = M;
   _N = N;
-  // _h1 =
-  // 3.0 / M; // 3.0 is a number specific for my task (size of outer rectangle)
-  // _h2 = 3.0 / N;
   _nodes.assign(_M + 1, line_t(_N + 1, 0));
 }
 
@@ -70,106 +87,7 @@ Grid::line_t Grid::Flatten(eDir direction) {
   return flattened;
 }
 
-// bool shouldFillOriginal(int i, int j, eDir direction, int flatSize, int _N,
-// int _M) {
-//     // Logic to determine if we should fill original grid values based on the
-//     direction switch (direction) {
-//         case top: return i >= (flatSize / _N);
-//         case bottom: return true; // Always fill original values if going to
-//         bottom case right: return j < _N; case left: return j >= (flatSize /
-//         _M);
-//     }
-//     return false;
-// }
-
-// bool isInsideOriginalGrid(int i, int j, eDir direction, int flatSize, int _N,
-// int _M) {
-//     // Logic to check if the indices are inside the original grid after
-//     offset switch (direction) {
-//         case top: return i >= (flatSize / _N);
-//         case bottom: return i < _M;
-//         case right: return j < _N;
-//         case left: return j < _N;
-//     }
-//     return false;
-// }
-
-// int offsetRow(int i, eDir direction, int flatSize, int _N, int _M) {
-//     // Calculate row offset depending on joining direction
-//     switch (direction) {
-//         case top: return flatSize / _N;
-//         case bottom: return 0;
-//         case right: return 0;
-//         case left: return 0;
-//     }
-//     return 0;
-// }
-
-// int offsetCol(int j, eDir direction, int flatSize, int _N, int _M) {
-//     // Calculate column offset depending on joining direction
-//     switch (direction) {
-//         case top: return 0;
-//         case bottom: return 0;
-//         case right: return 0;
-//         case left: return flatSize / _M;
-//     }
-//     return 0;
-// }
-
-// Grid Grid::Join(const std::vector<double>& flattened, eDir direction) {
-//   int newRows = _M;
-//   int newCols = _N;
-//   int flatSize = flattened.size();
-
-//   // Determine new dimensions based on the joining direction
-//   switch (direction) {
-//     case top: // Top
-//       newRows += (flatSize / _N);
-//       break;
-//     case bottom: // Bottom
-//       newRows += (flatSize / _N);
-//       break;
-//     case right: // Right
-//       newCols += (flatSize / _M);
-//       break;
-//     case left: // Left
-//       newCols += (flatSize / _M);
-//       break;
-//   }
-
-//   // Create a new grid with the updated dimensions
-//   Grid newGrid(newRows, newCols);
-
-//   // Fill the new grid with appropriate values
-//   int flatIndex = 0;
-
-//   printf("newN = %d, newM = %d\n", newCols, newRows);
-//   for (int i = 0; i < newRows; ++i) {
-//     for (int j = 0; j < newCols; ++j) {
-//       if (shouldFillOriginal(i, j, direction, flatSize, _N,_M)) {
-//         // Fill from the original grid
-//         if (isInsideOriginalGrid(i, j, direction, flatSize, _N,_M)) {
-//           int newI = i - offsetRow(i, direction, flatSize, _N,_M);
-//           int newJ = j - offsetCol(j, direction, flatSize, _N,_M);
-//           newGrid._nodes[i][j] = _nodes[newI][newJ];
-//         } else {
-//           newGrid._nodes[i][j] = 7; // Fill with 7 if outside original grid
-//         }
-//       } else {
-//         // Fill with flattened values if there's space
-//         if (flatIndex < flatSize) {
-//           newGrid._nodes[i][j] = flattened[flatIndex++];
-//         } else {
-//           newGrid._nodes[i][j] = 7; // Fill with 7 if not enough flattened
-//           values
-//         }
-//       }
-//     }
-//   }
-//   return newGrid;
-// }
-
-Grid Grid::Join(const std::vector<double> &flattened, eDir direction) {
+Solution Solution::Join(const std::vector<double> &flattened, eDir direction) {
   int newM = _M; // Original columns, including borders
   int newN = _N; // Original rows, including borders
   int flatSize = flattened.size();
@@ -179,7 +97,7 @@ Grid Grid::Join(const std::vector<double> &flattened, eDir direction) {
         "The size of the flattened array does not match the expected size "
         "after border removal.");
   }
-  int flatN = 0, flatM = 0;
+  int flatN, flatM;
   // Determine new dimensions based on the joining direction
   switch (direction) {
   case top:
@@ -197,15 +115,14 @@ Grid Grid::Join(const std::vector<double> &flattened, eDir direction) {
     newM += flatM;
     break;
   }
-  Grid joinedGrid(newM, newN);
+  // Grid joinedGrid(newM, newN);
+  Solution joinedGrid(newM, newN, _x0, _y0, _h1, _h2, _maxIterations,
+                      _tolerance);
 
-  printf("newM=%d, newN=%d, flatSize=%d, flatM=%d, flatN=%d\n", newM, newN,
-         flatSize, flatM, flatN);
   switch (direction) {
   case top: // Adding from the top
     for (int i = 0; i < newM + 1; ++i) {
       for (int j = 0; j < newN + 1; ++j) {
-        // printf("i=%d, j=%d\n", i, j);
         if (j < flatN) {
           size_t flatIndex = i * flatN + j;
           joinedGrid._nodes[i][j] = flattened[flatIndex];
@@ -221,8 +138,6 @@ Grid Grid::Join(const std::vector<double> &flattened, eDir direction) {
       for (int j = 0; j < newN + 1; ++j) {
         if (j > newN - flatN) {
           size_t flatIndex = i * flatN + (j - (newN - flatN + 1));
-          // printf("flatIndex = %ld, flatten=%f\n", flatIndex,
-          //  flattened[flatIndex]);
           joinedGrid._nodes[i][j] = flattened[flatIndex];
         } else {
           joinedGrid._nodes[i][j] = _nodes[i][j];
@@ -236,8 +151,6 @@ Grid Grid::Join(const std::vector<double> &flattened, eDir direction) {
       for (int j = 0; j < newN + 1; ++j) {
         if (i > newM - flatM) {
           size_t flatIndex = (i - (newM - flatM + 1)) * flatN + j;
-          // printf("flatIndex = %ld, flatten=%f\n", flatIndex,
-          //  flattened[flatIndex]);
           joinedGrid._nodes[i][j] = flattened[flatIndex];
         } else {
           joinedGrid._nodes[i][j] = _nodes[i][j];
@@ -251,9 +164,7 @@ Grid Grid::Join(const std::vector<double> &flattened, eDir direction) {
       for (int j = 0; j < newN + 1; ++j) {
         if (i < flatM) {
           size_t flatIndex = i * flatN + j;
-          // printf("flatIndex = %ld, flatten=%f\n", flatIndex,
-          //  flattened[flatIndex]);
-          joinedGrid._nodes[i][j] = 10 * flattened[flatIndex];
+          joinedGrid._nodes[i][j] = flattened[flatIndex];
         } else {
           joinedGrid._nodes[i][j] = _nodes[i - flatM + 1][j];
         }
@@ -281,12 +192,9 @@ void Solution::Find(sMethod method, int threads) {
   switch (method) {
   case lin: {
     auto start = std::chrono::high_resolution_clock::now();
-    // linear::computeA(_a);
     ComputeA();
     ComputeB();
-    // linear::computeB(_b);
     ComputeF();
-    // linear::computeF(_F);
     linear::calculateW(_a, _b, _F, _nodes, _maxIterations, _tolerance);
     auto stop = std::chrono::high_resolution_clock::now();
     _execTime = std::chrono::duration_cast<time_t>(stop - start);

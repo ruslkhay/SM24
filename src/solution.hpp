@@ -55,7 +55,8 @@ public:
   /// 0's
   line_t Flatten(eDir direction);
   // void Join(const line_t& flattened, eDir direction);
-  Grid Join(const line_t &flattened, eDir direction);
+  // Grid Join(const line_t &flattened, eDir direction);
+  Grid Join(const line_t &boarderVal, eDir direction);
 
 protected:
   // number of columns
@@ -79,6 +80,7 @@ public:
   void ComputeA();
   void ComputeB();
   void ComputeF();
+  Solution Join(const line_t &boarderVal, eDir direction);
 
 private:
   int _maxIterations;
