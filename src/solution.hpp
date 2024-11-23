@@ -13,6 +13,13 @@ enum sMethod {
   mpi,
 };
 
+enum eDir {
+  top,
+  bottom,
+  left,
+  right,
+};
+
 class Grid {
 
 public:
@@ -42,9 +49,18 @@ public:
   void SetBottomBoarder(const line_t &newBoarder);
 
   void Print();
+  /// @brief Convert 2D grid nodes into 1D vector
+  /// @param direction Define what boarder values to get rid of.
+  /// Dumping those are reasonable, because for Solution class all boarders are
+  /// 0's
+  line_t Flatten(eDir direction);
+  // void Join(const line_t& flattened, eDir direction);
+  Grid Join(const line_t &flattened, eDir direction);
 
 protected:
+  // number of columns
   int _M;
+  /// number of rows
   int _N;
   int _x0, _y0;
   double _h1; // horizontal step

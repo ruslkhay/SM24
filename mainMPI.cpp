@@ -41,8 +41,7 @@ Grid::line_t Receive(int rank, int prevRank) {
   return storage;
 }
 
-// const int M = 4, N = 4;
-const int M = 10, N = 10;
+const int M = 4, N = 4;
 const int maxIter = 1e5;
 const double tolerance = 1e-6;
 const double h1 = 3.0 / M, h2 = 3.0 / N;
@@ -71,20 +70,18 @@ int main(int argc, char **argv) {
                    boardVals);
     Send(boardVals, size, rank, nextRank);
     auto boarderVal = Receive(rank, prevRank);
-    // if (size == 2) {
-    //   solution.SetRightBoarder(boarderVal);
-    // }
+    solution.SetRightBoarder(boarderVal);
+    std::cout << "Solution after receiving right boarder:\n" << std::endl;
+    solution.Print();
   } else {
     auto [x0, xM, y0, yN] = GetSectors(size, rank, M, N);
     printf("(%d; %d), (%d, %d)\n", x0, xM, y0, yN);
     auto solution =
         Solution(xM - x0, yN - y0, x0, y0, h1, h2, maxIter, tolerance);
     auto boarderVal = Receive(rank, prevRank);
-    // if (size == 2) {
-    //   solution.SetLeftBoarder(boarderVal);
-    // }
     solution.Find(method);
-    auto boardVals = solution.GetRightBoarder();
+    // auto boardVals = solution.GetRightBoarder();
+    auto boardVals = solution.GetColumn(solution.GetM() - 1);
     debugSendPrint(solution.GetNodes(), rank, nextRank, x0, xM, y0, yN,
                    boardVals);
     Send(boardVals, size, rank, nextRank);
