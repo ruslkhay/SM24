@@ -19,7 +19,7 @@ int main() {
   auto meth = sMethod::lin;
   for (auto &[N, M] : NMs) {
     double h1 = 3.0 / M, h2 = 3.0 / N;
-    auto s = Solution(M, N, h1, h2, x0, y0, maxIterations, tolerance);
+    auto s = Solution(M, N, x0, y0, h1, h2, maxIterations, tolerance);
     s.Find(meth);
     s.SaveToFile("linear");
   }
@@ -28,7 +28,7 @@ int main() {
   double h1 = 3.0 / M, h2 = 3.0 / N;
   meth = sMethod::omp;
   for (auto threadNum : {1, 4, 16}) {
-    auto s = Solution(M, N, h1, h2, x0, y0, maxIterations, tolerance);
+    auto s = Solution(M, N, x0, y0, h1, h2, maxIterations, tolerance);
     // auto s = Solution(M, N, maxIterations, tolerance);
     s.Find(meth, threadNum);
     s.SaveToFile("openmp");
