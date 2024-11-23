@@ -195,7 +195,7 @@ void Solution::Find(sMethod method, int threads) {
     ComputeA();
     ComputeB();
     ComputeF();
-    linear::calculateW(_a, _b, _F, _nodes, _maxIterations, _tolerance);
+    ComputeW();
     auto stop = std::chrono::high_resolution_clock::now();
     _execTime = std::chrono::duration_cast<time_t>(stop - start);
   } break;
@@ -295,6 +295,87 @@ void Solution::ComputeF() {
 
       _F[i][j] =
           intersectionArea(P_ij, P_ij_diag) / (_h1 * _h2); // f(x*, y*) = 1
+    }
+  }
+}
+
+void Solution::CalculateResid(matrix_t &residuals) {
+  for (int i = 0; i < _M - 1; i++) {
+    for (int j = 0; j < _N - 1; j++) {
+      int I = i + 1;
+      int J = j + 1;
+      double term1 =
+          (_a[i][j] * (_nodes[I][J] - _nodes[I - 1][J])) / (_h1 * _h1);
+      double term2 =
+          (_a[i + 1][j] * (_nodes[I + 1][J] - _nodes[I][J])) / (_h1 * _h1);
+      double term3 =
+          (_b[i][j] * (_nodes[I][J] - _nodes[I][J - 1])) / (_h2 * _h2);
+      double term4 =
+          (_b[i][j + 1] * (_nodes[I][J + 1] - _nodes[I][J])) / (_h2 * _h2);
+
+      residuals[I][J] = (term2 - term1 + term4 - term3 + _F[i][j]);
+    }
+  }
+}
+
+void Solution::CalculateAr(matrix_t &Ar, const matrix_t &resid) {
+  for (int i = 0; i < _M - 1; i++) {
+    for (int j = 0; j < _N - 1; j++) {
+      int I = i + 1;
+      int J = j + 1;
+      double term1 = (_a[i][j] * (resid[I][J] - resid[I - 1][J])) / (_h1 * _h1);
+      double term2 =
+          (_a[i + 1][j] * (resid[I + 1][J] - resid[I][J])) / (_h1 * _h1);
+      double term3 = (_b[i][j] * (resid[I][J] - resid[I][J - 1])) / (_h2 * _h2);
+      double term4 =
+          (_b[i][j + 1] * (resid[I][J + 1] - resid[I][J])) / (_h2 * _h2);
+
+      Ar[I][J] = (term2 - term1 + term4 - term3 + _F[i][j]);
+    }
+  }
+}
+
+/// @brief Product in solution space
+/// @param a first matrix
+/// @param b second matrix
+/// @attention parameters should be same size
+double Solution::Product(const matrix_t &a, const matrix_t &b) {
+  double res = 0;
+  for (int i = 0; i < static_cast<int>(a.size()); i++) {
+    for (int j = 0; j < static_cast<int>(a[0].size()); j++) {
+      res += _h1 * _h2 * a[i][j] * b[i][j];
+    }
+  }
+  return res;
+}
+
+void Solution::ComputeW() {
+  matrix_t r(_M + 1, line_t(_N + 1, 0.0));
+  matrix_t Ar(_M + 1, line_t(_N + 1, 0.0));
+  matrix_t diffs(_M + 1, line_t(_N + 1, 0.0));
+  // Perform the iterative steepest descent
+  for (int iter = 0; iter < _maxIterations; iter++) {
+    matrix_t newW = _nodes;
+    double maxChange = 0.0;
+    CalculateResid(r);
+    CalculateAr(Ar, r);
+    double tau = CalculateTau(Ar, r);
+    for (int i = 0; i < _M - 1; i++) {
+      for (int j = 0; j < _N - 1; j++) {
+        int I = i + 1;
+        int J = j + 1;
+        newW[I][J] = _nodes[I][J] - tau * r[I][J];
+        diffs[I][J] = tau * r[I][J];
+      }
+    }
+
+    maxChange = std::max(maxChange, std::sqrt(Product(diffs, diffs)));
+    // Update W after all computations
+    _nodes = newW;
+    /// TODO Implement logic here for MPI_Send and MPI_Receive
+    // Check for convergence
+    if (maxChange < _tolerance) {
+      break;
     }
   }
 }
