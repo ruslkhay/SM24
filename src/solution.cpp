@@ -179,7 +179,7 @@ Grid Grid::Join(const std::vector<double> &flattened, eDir direction) {
         "The size of the flattened array does not match the expected size "
         "after border removal.");
   }
-  int flatN, flatM;
+  int flatN = 0, flatM = 0;
   // Determine new dimensions based on the joining direction
   switch (direction) {
   case top:
@@ -189,8 +189,8 @@ Grid Grid::Join(const std::vector<double> &flattened, eDir direction) {
     flatN = flatSize / flatM;
     newN += flatN;
     break;
-  case right:
   case left:
+  case right:
     --newM;
     flatN = flatSize / _M;
     flatM = flatSize / flatN;
@@ -223,6 +223,21 @@ Grid Grid::Join(const std::vector<double> &flattened, eDir direction) {
           size_t flatIndex = i * flatN + (j - (newN - flatN + 1));
           // printf("flatIndex = %ld, flatten=%f\n", flatIndex,
           //  flattened[flatIndex]);
+          joinedGrid._nodes[i][j] = flattened[flatIndex];
+        } else {
+          joinedGrid._nodes[i][j] = _nodes[i][j];
+        }
+      }
+    }
+    break;
+
+  case right: // Adding from the top
+    for (int i = 0; i < newM + 1; ++i) {
+      for (int j = 0; j < newN + 1; ++j) {
+        if (i > newM - flatM) {
+          size_t flatIndex = (i - (newM - flatM + 1)) * flatN + j;
+          // printf("flatIndex = %ld, flatten=%f\n", flatIndex,
+          //  flattened[flatIndex]);
           joinedGrid._nodes[i][j] = 10 * flattened[flatIndex];
         } else {
           joinedGrid._nodes[i][j] = _nodes[i][j];
@@ -231,20 +246,18 @@ Grid Grid::Join(const std::vector<double> &flattened, eDir direction) {
     }
     break;
 
-  default:
+  case left: // Adding from the left
+    for (int i = 0; i < newM + 1; ++i) {
+      for (int j = 0; j < newN + 1; ++j) {
+        if (j > newN - flatN) {
+          size_t flatIndex = i * flatN + (j - (newN - flatN + 1));
+          joinedGrid._nodes[i][j] = flattened[flatIndex];
+        } else {
+          joinedGrid._nodes[i][j] = _nodes[i][j];
+        }
+      }
+    }
     break;
-    // case left: // Adding from the left
-    //   for (int i = 0; i < newM; ++i){
-    //     for (int j = 0; j < newN; j++) {
-    //       if (i > newM - flatM){
-    //         joinedGrid._nodes[i][j] = flattened[i * newN + j];
-    //       }
-    //       else {
-    //         joinedGrid._nodes[i][j] = _nodes[i][j];
-    //       }
-    //     }
-    //   }
-    //   break;
 
     // case right: // Adding from the right
     //   for (int i = 0; i < rows; i++) {
