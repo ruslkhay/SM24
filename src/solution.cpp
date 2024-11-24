@@ -90,7 +90,8 @@ Grid::line_t Grid::Flatten(eDir direction, int offset) {
   return flattened;
 }
 
-Solution Solution::Join(const std::vector<double> &flattened, eDir direction) {
+Solution Solution::Join(const std::vector<double> &flattened, eDir direction,
+                        int offset) {
   int newM = _M; // Original columns, including borders
   int newN = _N; // Original rows, including borders
   int flatSize = flattened.size();
@@ -100,20 +101,21 @@ Solution Solution::Join(const std::vector<double> &flattened, eDir direction) {
         "The size of the flattened array does not match the expected size "
         "after border removal.");
   }
+  // printf("newM=%d, newN=%d, flatSize=%d\n", newM, newN, flatSize);
   int flatN, flatM;
   // Determine new dimensions based on the joining direction
   switch (direction) {
   case top:
   case bottom:
-    --newN; // Get rid of top/bottom 0's boarder values of initial grid
+    newN -= offset; // Get rid of top/bottom 0's boarder values of initial grid
     flatM = flatSize / _N; // TODO: add offset here <=> _N + 1 - offset
     flatN = flatSize / flatM;
     newN += flatN;
     break;
   case left:
   case right:
-    --newM;
-    flatN = flatSize / _M; // TODO: add offset here
+    newM = _M + 1 - offset;
+    flatN = flatSize / newM; // TODO: add offset here
     flatM = flatSize / flatN;
     newM += flatM;
     break;
@@ -123,7 +125,7 @@ Solution Solution::Join(const std::vector<double> &flattened, eDir direction) {
                       _tolerance);
 
   switch (direction) {
-  case top: // Adding from the top
+  case top:
     for (int i = 0; i < newM + 1; ++i) {
       for (int j = 0; j < newN + 1; ++j) {
         if (j < flatN) {
@@ -136,7 +138,7 @@ Solution Solution::Join(const std::vector<double> &flattened, eDir direction) {
     }
     break;
 
-  case bottom: // Adding from the bottom
+  case bottom:
     for (int i = 0; i < newM + 1; ++i) {
       for (int j = 0; j < newN + 1; ++j) {
         if (j > newN - flatN) {
@@ -149,11 +151,14 @@ Solution Solution::Join(const std::vector<double> &flattened, eDir direction) {
     }
     break;
 
-  case right: // Adding from the top
+  case right:
+    // printf("flatM=%d, flatN=%d\n", flatM, flatN);
+    // printf("newM=%d, newN=%d\n", newM, newN);
     for (int i = 0; i < newM + 1; ++i) {
       for (int j = 0; j < newN + 1; ++j) {
         if (i > newM - flatM) {
           size_t flatIndex = (i - (newM - flatM + 1)) * flatN + j;
+          // printf("i=%d, j=%d, flatIndex=%ld\n", i, j, flatIndex);
           joinedGrid._nodes[i][j] = flattened[flatIndex];
         } else {
           joinedGrid._nodes[i][j] = _nodes[i][j];
@@ -162,7 +167,7 @@ Solution Solution::Join(const std::vector<double> &flattened, eDir direction) {
     }
     break;
 
-  case left: // Adding from the top
+  case left:
     for (int i = 0; i < newM + 1; ++i) {
       for (int j = 0; j < newN + 1; ++j) {
         if (i < flatM) {

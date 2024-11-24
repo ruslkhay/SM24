@@ -75,6 +75,7 @@ Grid::line_t Receive(int rank, int prevRank) {
 
 const int M = 40, N = 40;
 const int maxIter = 1e5;
+// const int M = 4, N = 4;
 // const int maxIter = 3;
 const double tolerance = 1e-6;
 const double h1 = 3.0 / M, h2 = 3.0 / N;
@@ -146,9 +147,11 @@ int main(int argc, char **argv) {
       auto rightBoardVals = domainSolution.GetColumn(domainSolution.GetM() - 1);
 
       // debugSendPrint(domainSolution.GetNodes(), rank, nextRank, x0, xM, y0,
-      // yN, rightBoardVals); printf("maxDiff=%f, tau=%f for rank %d, iter№
-      // %d\n", maxDiff, tau,
-      //         rank, iter);
+      // yN,
+      //                rightBoardVals);
+      // printf("maxDiff=%f, tau=%f for rank %d, iter№ %d\n", maxDiff, tau,
+      // rank,
+      //        iter);
 
       sizeAndState = {rightBoardVals.size(), 0};
       if ((maxDiff < tolerance && sizeAndState.second) || iter == maxIter - 1) {
@@ -174,9 +177,9 @@ int main(int argc, char **argv) {
 
       // Add boarder values to domain
       domainSolution.SetLeftBoarder(boardVals);
-      // printf("maxDiff=%f, tau=%f for rank %d, iter№ %d\n", maxDiff, tau,
-      // rank,
-      //  iter);
+
+      printf("maxDiff=%f, tau=%f for rank %d, iter№ %d\n", maxDiff, tau, rank,
+             iter);
 
       auto diff = domainSolution.OneStepOfSolution(tau);
       maxDiff = std::max(maxDiff, diff);
@@ -186,7 +189,7 @@ int main(int argc, char **argv) {
         // std::cout << "Before flattening:\n";
         // domainSolution.Print();
 
-        auto flattened = domainSolution.Flatten(eDir::left);
+        auto flattened = domainSolution.Flatten(eDir::left, 2);
         sizeAndState = {flattened.size(), 1};
         Send(sizeAndState, flattened, tauNomDenom, nextRank);
         break;
@@ -194,7 +197,7 @@ int main(int argc, char **argv) {
         auto leftBoardVals = domainSolution.GetColumn(1);
         sizeAndState = {leftBoardVals.size(), 0};
         // debugSendPrint(domainSolution.GetNodes(), rank, nextRank, x0, xM, y0,
-        // yN, leftBoardVals);
+        //                yN, leftBoardVals);
         Send(sizeAndState, leftBoardVals, tauNomDenom, nextRank);
       }
     }
@@ -206,7 +209,8 @@ int main(int argc, char **argv) {
     Grid::line_t boardVals(sizeAndState.first);
     MPI_Recv(&boardVals[0], sizeAndState.first, MPI_DOUBLE, prevRank, tagData,
              MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    auto joinedGrid = domainSolution.Join(boardVals, eDir::right);
+    // domainSolution.Print();
+    auto joinedGrid = domainSolution.Join(boardVals, eDir::right, 2);
     // std::cout << "Flattened:\n";
     // for (auto elem: boardVals){
     //   std::cout << elem << ", ";
