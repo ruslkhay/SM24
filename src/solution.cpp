@@ -332,7 +332,7 @@ void Solution::CalculateResid() {
 /// step `tau` of iterative descend
 std::pair<double, double> Solution::CalculateTau() {
   matrix_t Ar(_M + 1, line_t(_N + 1, 0.0));
-  CalculateResid();
+  // CalculateResid();
   for (int i = 0; i < _M - 1; i++) {
     for (int j = 0; j < _N - 1; j++) {
       int I = i + 1;

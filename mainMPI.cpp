@@ -74,9 +74,9 @@ Grid::line_t Receive(int rank, int prevRank) {
 }
 
 const int M = 40, N = 40;
-// const int maxIter = 1e5;
+const int maxIter = 1e5;
 // const int M = 4, N = 4;
-const int maxIter = 801;
+// const int maxIter = 3;
 const double tolerance = 1e-6;
 const double h1 = 3.0 / M, h2 = 3.0 / N;
 auto method = sMethod::lin;
@@ -121,6 +121,20 @@ Grid::line_t Receive(std::pair<int, int> &sizeAndState,
   return boardVals;
 }
 
+void SendResid(const Grid::line_t &boardVals, int nextRank, int tagSR = 10,
+               int tagR = 11) {
+  int size = boardVals.size();
+  MPI_Send(&size, 1, MPI_INT, nextRank, tagSR, MPI_COMM_WORLD);
+  MPI_Send(&boardVals[0], size, MPI_DOUBLE, nextRank, tagR, MPI_COMM_WORLD);
+}
+Grid::line_t ReceiveResid(int storageSize, int prevRank, int tagSR = 10,
+                          int tagR = 11) {
+  Grid::line_t boardVals(storageSize);
+  MPI_Recv(&boardVals[0], storageSize, MPI_DOUBLE, prevRank, tagR,
+           MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+  return boardVals;
+}
+
 int main(int argc, char **argv) {
   int rank, size;
   // Initialize the MPI environment
@@ -149,9 +163,8 @@ int main(int argc, char **argv) {
       // Store maximum of norm ||w_(k+1) - w_k||
       auto maxDiff = 0.0;
       // Produce one step and store ||w_(k+1) - w_k|| into diff
-
-      // if (iter == 0 || sizeAndState.second) {
-      if (iter == 0) {
+      domainSolution.CalculateResid();
+      if (iter == 0 || sizeAndState.second) {
         tauNomDenom = domainSolution.CalculateTau();
         tau = tauNomDenom.first / tauNomDenom.second;
       } else {
@@ -163,40 +176,50 @@ int main(int argc, char **argv) {
       maxDiff = std::max(maxDiff, diff);
       // Send boarder values to next process
       // Check if builded solution is suitable for current domain
-      auto rightBoardVals = domainSolution.GetColumn(domainSolution.GetM() - 1);
+      auto rightBoardVals = domainSolution.GetRightBoarder();
+      auto rightResidVals = domainSolution.GetRightResid();
 
-      // debugSendPrint(domainSolution.GetNodes(), rank, nextRank, x0, xM, y0,
-      // yN,
-      //                rightBoardVals);
+      // debugSendPrint(domainSolution.GetResiduals(), rank, nextRank, x0, xM,
+      // y0, yN,
+      //                rightResidVals);
+
       printf("maxDiff=%.8f, tau=%f for rank %d, iter№ %d, prev finished %d\n",
              maxDiff, tau, rank, iter, sizeAndState.second);
 
       if ((maxDiff < tolerance) || iter == maxIter - 1) {
         if (!sizeAndState.second) {
+          // Send resid
+          SendResid(rightResidVals, nextRank);
+          // Send solution
           sizeAndState = {rightBoardVals.size(), 1};
           Send(sizeAndState, rightBoardVals, tauNomDenom, nextRank);
         }
         break; // it is masterRank
-        // sizeAndState = {rightBoardVals.size(), 1};
-        // Send(sizeAndState, rightBoardVals, tauNomDenom, nextRank);
       }
       if (!sizeAndState.second) {
+        // Send resid
+        SendResid(rightResidVals, nextRank);
         // Send size, state (finish or not), and boarder values
         sizeAndState = {rightBoardVals.size(), 0};
         Send(sizeAndState, rightBoardVals, tauNomDenom, nextRank);
         auto boardVals = Receive(sizeAndState, tauNomDenom, prevRank);
         domainSolution.SetRightBoarder(boardVals);
+        auto boardResidVals = ReceiveResid(rightResidVals.size(), prevRank);
+        domainSolution.SetRightResid(boardResidVals);
       }
     }
   } else {
     for (int iter = 0; iter < maxIter; iter++) {
       // Store maximum of norm ||w_(k+1) - w_k||
+      domainSolution.CalculateResid();
       auto maxDiff = 0.0;
       // if process 0 is not finished
       if (!sizeAndState.second) { // for initial iteration it is true
         auto boardVals = Receive(sizeAndState, tauNomDenom, prevRank);
         // Add boarder values to domain
         domainSolution.SetLeftBoarder(boardVals);
+        auto boardResidVals = ReceiveResid(boardVals.size(), prevRank);
+        domainSolution.SetLeftResid(boardResidVals);
 
         auto [tNom, tDenom] = domainSolution.CalculateTau();
         tau = (tauNomDenom.first + tNom) / (tauNomDenom.second + tDenom);
@@ -212,16 +235,22 @@ int main(int argc, char **argv) {
              maxDiff, tau, rank, iter, sizeAndState.second);
       // Check if builded solution is suitable for current domain
       if (!sizeAndState.second) {
-        auto leftBoardVals = domainSolution.GetColumn(1);
+        auto leftResidVals = domainSolution.GetLeftResid();
+        SendResid(leftResidVals, nextRank);
+        auto leftBoardVals = domainSolution.GetLeftBoarder();
         sizeAndState = {leftBoardVals.size(), 0};
-        // debugSendPrint(domainSolution.GetNodes(), rank, nextRank, x0, xM, y0,
-        //                yN, leftBoardVals);
+
+        // debugSendPrint(domainSolution.GetResiduals(), rank, nextRank, x0, xM,
+        // y0,
+        //                yN, leftResidVals);
+
         Send(sizeAndState, leftBoardVals, tauNomDenom, nextRank);
       }
       if (maxDiff < tolerance || iter == maxIter - 1) {
-        // std::cout << "Before flattening:\n";
         if (!sizeAndState.second) {
-          auto leftBoardVals = domainSolution.GetColumn(1);
+          auto leftResidVals = domainSolution.GetLeftResid();
+          SendResid(leftResidVals, nextRank);
+          auto leftBoardVals = domainSolution.GetLeftBoarder();
           sizeAndState = {leftBoardVals.size(), 1};
           // debugSendPrint(domainSolution.GetNodes(), rank, nextRank, x0, xM,
           // y0,
@@ -231,7 +260,6 @@ int main(int argc, char **argv) {
         auto flattened = domainSolution.Flatten(eDir::left, 2);
         sizeAndState = {flattened.size(), 1};
         SendToMaster(sizeAndState, flattened, masterRank);
-        // Send(sizeAndState, flattened, tauNomDenom, nextRank);
         break;
       }
     }

@@ -33,10 +33,10 @@ public:
   line_t GetColumn(int m);
   line_t GetRow(int n);
 
-  line_t GetTopBoarder() { return GetRow(0); };
-  line_t GetBottomBoarder() { return GetRow(_N); };
-  line_t GetLeftBoarder() { return GetColumn(0); };
-  line_t GetRightBoarder() { return GetColumn(_M); };
+  line_t GetTopBoarder() { return GetRow(1); };
+  line_t GetBottomBoarder() { return GetRow(_N - 1); };
+  line_t GetLeftBoarder() { return GetColumn(1); };
+  line_t GetRightBoarder() { return GetColumn(_M - 1); };
 
   inline matrix_t GetNodes() { return _nodes; }
   inline int GetH1() { return _h1; }
@@ -72,14 +72,26 @@ public:
            int maxIterations, double tolerance);
   void SaveToFile(std::string fileName);
   void Find(sMethod method, int threads = 1);
+
+  line_t GetTopResid();
+  line_t GetBottomResid();
+  line_t GetLeftResid();
+  line_t GetRightResid();
+
+  void SetLeftResid(const line_t &newBoarder);
+  void SetRightResid(const line_t &newBoarder);
+  void SetTopResid(const line_t &newBoarder);
+  void SetBottomResid(const line_t &newBoarder);
+
   Solution Join(const line_t &boarderVal, eDir direction, int offset = 1);
   void ComputeABF() {
     ComputeA();
     ComputeB();
     ComputeF();
   };
-  matrix_t GetResiduals() { return _resid; }
+  void CalculateResid();
   std::pair<double, double> CalculateTau();
+  matrix_t GetResiduals() { return _resid; }
   double OneStepOfSolution(double tau);
   double OneStepOfSolution();
 
@@ -105,9 +117,48 @@ private:
   std::filesystem::path _dirPath;
   void CreateOutputDir(std::string buildDir = ".",
                        std::string outputDirName = "output");
-  void CalculateResid();
   double Product(const matrix_t &a, const matrix_t &b);
 };
+
+inline Solution::line_t Solution::GetLeftResid() { return _resid[1]; }
+
+inline Solution::line_t Solution::GetRightResid() { return _resid[_M - 1]; }
+
+inline Solution::line_t Solution::GetTopResid() {
+  line_t res(_M + 1);
+  for (int i = 0; i < _M + 1; ++i) {
+    res[i] = _resid[i][1];
+  }
+  return res;
+}
+
+inline Solution::line_t Solution::GetBottomResid() {
+  line_t res(_M + 1);
+  for (int i = 0; i < _M + 1; ++i) {
+    res[i] = _resid[i][_N - 1];
+  }
+  return res;
+}
+
+inline void Solution::SetLeftResid(const line_t &newBoarder) {
+  _resid[0] = newBoarder;
+}
+
+inline void Solution::SetRightResid(const line_t &newBoarder) {
+  _resid[_M] = newBoarder;
+}
+
+inline void Solution::SetTopResid(const line_t &newBoarder) {
+  for (int i = 0; i < _M + 1; ++i) {
+    _resid[i][0] = newBoarder[i];
+  }
+}
+
+inline void Solution::SetBottomResid(const line_t &newBoarder) {
+  for (int i = 0; i < _M + 1; ++i) {
+    _resid[i][_N] = newBoarder[i];
+  }
+}
 
 inline void Grid::SetLeftBoarder(const line_t &newBoarder) {
   _nodes[0] = newBoarder;
