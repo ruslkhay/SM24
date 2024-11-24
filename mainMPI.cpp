@@ -117,17 +117,17 @@ int main(int argc, char **argv) {
       // Produce one step and store ||w_(k+1) - w_k|| into diff
       auto diff = domainSolution.OneStepOfSolution();
       maxDiff = std::max(maxDiff, diff);
-      printf("maxDiff for rank %d equals %f\n", rank, maxDiff);
+      printf("maxDiff for rank %d equals %f, iter№ %d\n", rank, maxDiff, iter);
       // Send boarder values to next process
       // Check if builded solution is suitable for current domain
       auto rightBoardVals = domainSolution.GetColumn(domainSolution.GetM() - 1);
       sizeAndState = {rightBoardVals.size(), 0};
-      if (maxDiff < tolerance || sizeAndState.second || iter == maxIter - 1) {
+      if ((maxDiff < tolerance && sizeAndState.second) || iter == maxIter - 1) {
         sizeAndState = {rightBoardVals.size(), 1};
         MPI_Send(&sizeAndState, 2, MPI_INT, nextRank, tagSAS, MPI_COMM_WORLD);
         MPI_Send(&rightBoardVals[0], sizeAndState.first, MPI_DOUBLE, nextRank,
                  tagData, MPI_COMM_WORLD);
-        break;
+        // break;
       } else {
         // Send size, state (finish or not), and boarder values
         MPI_Send(&sizeAndState, 2, MPI_INT, nextRank, tagSAS, MPI_COMM_WORLD);
@@ -159,10 +159,11 @@ int main(int argc, char **argv) {
       domainSolution.SetLeftBoarder(boardVals);
       auto diff = domainSolution.OneStepOfSolution();
       maxDiff = std::max(maxDiff, diff);
-      printf("maxDiff for rank %d equals %f\n", rank, maxDiff);
+      printf("maxDiff for rank %d equals %f, iter№ %d\n", rank, maxDiff, iter);
       // Check if builded solution is suitable for current domain
       auto flattened = domainSolution.Flatten(eDir::left);
-      if (maxDiff < tolerance || iter == maxIter - 1 || sizeAndState.second) {
+      if ((maxDiff < tolerance && iter == maxIter - 1) || sizeAndState.second) {
+        // std::cout << "ere\n" << std::endl;
         sizeAndState = {flattened.size(), 1};
         MPI_Send(&sizeAndState, 2, MPI_INT, nextRank, tagSAS, MPI_COMM_WORLD);
         MPI_Send(&flattened[0], sizeAndState.first, MPI_DOUBLE, nextRank,
@@ -175,9 +176,14 @@ int main(int argc, char **argv) {
                  tagData, MPI_COMM_WORLD);
       }
     }
+    // if (sizeAndState.second) {
+    //   break;
+    // }
   }
 
-  MPI_Barrier(MPI_COMM_WORLD);
+  // std::cout << "HeRE\n" << std::endl;
+  // MPI_Barrier(MPI_COMM_WORLD);
+  // std::cout << "HeRE\n" << std::endl;
   if (rank == masterRank) {
     MPI_Recv(&sizeAndState, 2, MPI_INT, prevRank, tagSAS, MPI_COMM_WORLD,
              MPI_STATUS_IGNORE);
