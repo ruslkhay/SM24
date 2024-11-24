@@ -51,7 +51,7 @@ Grid::Grid(int M, int N, double x0, double y0, double h1, double h2) {
 /// boarders are 0's
 Grid::line_t Grid::Flatten(eDir direction, int offset) {
   std::vector<double> flattened;
-  flattened.reserve(_M * _N);
+  flattened.reserve((_M + 1) * (_N + 1));
   // Depending on the specified direction, remove the corresponding border
   switch (direction) {
   case left:

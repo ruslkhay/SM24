@@ -73,9 +73,9 @@ Grid::line_t Receive(int rank, int prevRank) {
   return storage;
 }
 
-const int M = 20, N = 20;
-// const int maxIter = 1e5;
-const int maxIter = 100000;
+const int M = 40, N = 40;
+const int maxIter = 1e5;
+// const int maxIter = 3;
 const double tolerance = 1e-6;
 const double h1 = 3.0 / M, h2 = 3.0 / N;
 auto method = sMethod::lin;
@@ -144,6 +144,12 @@ int main(int argc, char **argv) {
       // Send boarder values to next process
       // Check if builded solution is suitable for current domain
       auto rightBoardVals = domainSolution.GetColumn(domainSolution.GetM() - 1);
+
+      // debugSendPrint(domainSolution.GetNodes(), rank, nextRank, x0, xM, y0,
+      // yN, rightBoardVals); printf("maxDiff=%f, tau=%f for rank %d, iter№
+      // %d\n", maxDiff, tau,
+      //         rank, iter);
+
       sizeAndState = {rightBoardVals.size(), 0};
       if ((maxDiff < tolerance && sizeAndState.second) || iter == maxIter - 1) {
         sizeAndState = {rightBoardVals.size(), 1};
@@ -151,8 +157,6 @@ int main(int argc, char **argv) {
       } else {
         // Send size, state (finish or not), and boarder values
         Send(sizeAndState, rightBoardVals, tauNomDenom, nextRank);
-        // printf("maxDiff=%f, tau=%f for rank %d, iter№ %d\n", maxDiff, tau,
-        //         rank, iter);
         auto boardVals = Receive(sizeAndState, tauNomDenom, prevRank);
         domainSolution.SetRightBoarder(boardVals);
         // }
@@ -168,21 +172,30 @@ int main(int argc, char **argv) {
       tau = (tauNomDenom.first + tNom) / (tauNomDenom.second + tDenom);
       tauNomDenom = {tNom, tDenom};
 
-      printf("maxDiff=%f, tau=%f for rank %d, iter№ %d\n", maxDiff, tau, rank,
-             iter);
       // Add boarder values to domain
       domainSolution.SetLeftBoarder(boardVals);
+      // printf("maxDiff=%f, tau=%f for rank %d, iter№ %d\n", maxDiff, tau,
+      // rank,
+      //  iter);
+
       auto diff = domainSolution.OneStepOfSolution(tau);
       maxDiff = std::max(maxDiff, diff);
       // Check if builded solution is suitable for current domain
-      auto flattened = domainSolution.Flatten(eDir::left);
       if ((maxDiff < tolerance && iter == maxIter - 1) || sizeAndState.second) {
+
+        // std::cout << "Before flattening:\n";
+        // domainSolution.Print();
+
+        auto flattened = domainSolution.Flatten(eDir::left);
         sizeAndState = {flattened.size(), 1};
-        Send(sizeAndState, boardVals, tauNomDenom, nextRank);
+        Send(sizeAndState, flattened, tauNomDenom, nextRank);
         break;
       } else {
-        sizeAndState = {flattened.size(), 0};
-        Send(sizeAndState, boardVals, tauNomDenom, nextRank);
+        auto leftBoardVals = domainSolution.GetColumn(1);
+        sizeAndState = {leftBoardVals.size(), 0};
+        // debugSendPrint(domainSolution.GetNodes(), rank, nextRank, x0, xM, y0,
+        // yN, leftBoardVals);
+        Send(sizeAndState, leftBoardVals, tauNomDenom, nextRank);
       }
     }
   }
@@ -194,6 +207,11 @@ int main(int argc, char **argv) {
     MPI_Recv(&boardVals[0], sizeAndState.first, MPI_DOUBLE, prevRank, tagData,
              MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     auto joinedGrid = domainSolution.Join(boardVals, eDir::right);
+    // std::cout << "Flattened:\n";
+    // for (auto elem: boardVals){
+    //   std::cout << elem << ", ";
+    // }
+    // std::cout << std::endl;
     // std::cout << "Solution after receiving right boarder:\n" << std::endl;
     // joinedGrid.Print();
     joinedGrid.SaveToFile("mpi");
