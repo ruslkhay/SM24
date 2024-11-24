@@ -365,9 +365,10 @@ double Solution::Product(const matrix_t &a, const matrix_t &b) {
 double Solution::OneStepOfSolution() {
   // Store differences between solution on different steps: w_(k+1) and w_k
   matrix_t diffs(_M + 1, line_t(_N + 1, 0.0));
-  // Perform the iterative steepest descent
   CalculateResid();
+  // Perform the iterative steepest descent
   double tau = CalculateTau();
+  // printf("\ttau = %f\n", tau);
   for (int i = 0; i < _M - 1; i++) {
     for (int j = 0; j < _N - 1; j++) {
       int I = i + 1;

@@ -73,6 +73,13 @@ public:
   void SaveToFile(std::string fileName);
   void Find(sMethod method, int threads = 1);
   Solution Join(const line_t &boarderVal, eDir direction);
+  double OneStepOfSolution();
+  void ComputeABF() {
+    ComputeA();
+    ComputeB();
+    ComputeF();
+  };
+  matrix_t GetResiduals() { return _resid; }
 
 private:
   int _maxIterations;
@@ -92,7 +99,6 @@ private:
   void ComputeF();
   void ComputeW();
   void ComputeW(int procNum, int rank, int prevRank);
-  double OneStepOfSolution();
 
   std::filesystem::path _dirPath;
   void CreateOutputDir(std::string buildDir = ".",

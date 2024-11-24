@@ -1,6 +1,7 @@
 #include "src/mpi.hpp"
 #include "src/solution.hpp"
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <mpi.h>
 #include <stdio.h>
@@ -68,7 +69,7 @@ void _Receive(int rank, int prevRank) {
   std::vector<double> storage(bS.first);
   MPI_Recv(&storage[0], bS.first, MPI_DOUBLE, prevRank, 0, MPI_COMM_WORLD,
            MPI_STATUS_IGNORE);
-  debugReceivePrint(storage, rank, prevRank, bS);
+  // debugReceivePrint(storage, rank, prevRank, bS);
 }
 
 Grid::line_t Receive(int rank, int prevRank) {
@@ -77,12 +78,13 @@ Grid::line_t Receive(int rank, int prevRank) {
   Grid::line_t storage(bS.first);
   MPI_Recv(&storage[0], bS.first, MPI_DOUBLE, prevRank, 0, MPI_COMM_WORLD,
            MPI_STATUS_IGNORE);
-  debugReceivePrint(storage, rank, prevRank, bS);
+  // debugReceivePrint(storage, rank, prevRank, bS);
   return storage;
 }
 
-const int M = 4, N = 4;
-const int maxIter = 1e5;
+const int M = 40, N = 40;
+// const int maxIter = 1e5;
+const int maxIter = 100000;
 const double tolerance = 1e-6;
 const double h1 = 3.0 / M, h2 = 3.0 / N;
 auto method = sMethod::lin;
@@ -97,57 +99,97 @@ int main(int argc, char **argv) {
   std::pair<int, int> buffSize(0, 0);
   int nextRank = (rank + 1) % size;
   int prevRank = rank == 0 ? size - 1 : rank - 1;
-  // int masterRank = 0;
+  int masterRank = 0;
+  int tagSAS = 0, tagData = 1;
 
-  // auto [x1, xM, y0, yN] = GetSectors(size, rank, M, N);
-  // auto domainSolution =
-  //     Solution(xM - x1, yN - y0, x0, y0, h1, h2, maxIter, tolerance);
-
-  // if (rank == masterRank) {
-
-  // }
+  auto [x0, xM, y0, yN] = GetSectors(size, rank, M, N);
+  auto domainSolution =
+      Solution(xM - x0, yN - y0, x0, y0, h1, h2, maxIter, tolerance);
+  domainSolution.ComputeABF();
+  std::pair<int, int> sizeAndState(0, 0);
 
   MPI_Barrier(MPI_COMM_WORLD);
 
-  // if (rank % 2 == 0) {
-  //   for (int iter = 0; iter < maxIter; iter++) {
-  //     domainSolution.OneStepOfSolution()
-  //   }
-  // } else {
-  // }
-
-  auto [x0, xM, y0, yN] = GetSectors(size, rank, M, N);
-  auto solution =
-      Solution(xM - x0, yN - y0, x0, y0, h1, h2, maxIter, tolerance);
-  // Communicate processes
-  if (rank % 2 == 0) {
-    // Get limits of first domain (0)
-    solution.Find(method);
-    // Take right inner nodes and send it to next domain
-    auto boardVals = solution.GetColumn(solution.GetM() - 1);
-    debugSendPrint(solution.GetNodes(), rank, nextRank, x0, xM, y0, yN,
-                   boardVals);
-    Send(boardVals, size, rank, nextRank);
-    // Receive all nodes from next domain and join to solution
-    auto boarderVal = Receive(rank, prevRank);
-    auto joinedGrid = solution.Join(boarderVal, eDir::right);
-    std::cout << "Solution after receiving right boarder:\n" << std::endl;
-    joinedGrid.Print();
-
-  } else {
-    auto boarderVal = Receive(rank, prevRank);
-    solution.SetLeftBoarder(boarderVal);
-    solution.Find(method);
-    auto flattened = solution.Flatten(eDir::left);
-    // auto boardVals = solution.GetRightBoarder();
-    // auto boardVals = solution.GetColumn(solution.GetM() - 1);
-    // debugSendPrint(solution.GetNodes(), rank, nextRank, x0, xM, y0, yN,
-    //                boardVals);
-    debugSendPrint(solution.GetNodes(), rank, nextRank, x0, xM, y0, yN,
-                   flattened);
-    Send(flattened, size, rank, nextRank);
+  for (int iter = 0; iter < maxIter; iter++) {
+    if (rank % 2 == 0) {
+      // Store maximum of norm ||w_(k+1) - w_k||
+      auto maxDiff = 0.0;
+      // Produce one step and store ||w_(k+1) - w_k|| into diff
+      auto diff = domainSolution.OneStepOfSolution();
+      maxDiff = std::max(maxDiff, diff);
+      printf("maxDiff for rank %d equals %f\n", rank, maxDiff);
+      // Send boarder values to next process
+      // Check if builded solution is suitable for current domain
+      auto rightBoardVals = domainSolution.GetColumn(domainSolution.GetM() - 1);
+      sizeAndState = {rightBoardVals.size(), 0};
+      if (maxDiff < tolerance || sizeAndState.second || iter == maxIter - 1) {
+        sizeAndState = {rightBoardVals.size(), 1};
+        MPI_Send(&sizeAndState, 2, MPI_INT, nextRank, tagSAS, MPI_COMM_WORLD);
+        MPI_Send(&rightBoardVals[0], sizeAndState.first, MPI_DOUBLE, nextRank,
+                 tagData, MPI_COMM_WORLD);
+        break;
+      } else {
+        // Send size, state (finish or not), and boarder values
+        MPI_Send(&sizeAndState, 2, MPI_INT, nextRank, tagSAS, MPI_COMM_WORLD);
+        MPI_Send(&rightBoardVals[0], sizeAndState.first, MPI_DOUBLE, nextRank,
+                 tagData, MPI_COMM_WORLD);
+        // Send(rightBoardVals, size, rank, nextRank);
+        // Receive
+        MPI_Recv(&sizeAndState, 2, MPI_INT, prevRank, tagSAS, MPI_COMM_WORLD,
+                 MPI_STATUS_IGNORE);
+        // If process 1 is not finished
+        if (!sizeAndState.second) {
+          Grid::line_t boardVals(sizeAndState.first);
+          MPI_Recv(&boardVals[0], sizeAndState.first, MPI_DOUBLE, prevRank,
+                   tagData, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+          // auto boarderVal = Receive(rank, prevRank);
+          domainSolution.SetRightBoarder(boardVals);
+        }
+      }
+    } else {
+      // Store maximum of norm ||w_(k+1) - w_k||
+      auto maxDiff = 0.0;
+      // Receive from process 0
+      MPI_Recv(&sizeAndState, 2, MPI_INT, prevRank, tagSAS, MPI_COMM_WORLD,
+               MPI_STATUS_IGNORE);
+      Grid::line_t boardVals(sizeAndState.first);
+      MPI_Recv(&boardVals[0], sizeAndState.first, MPI_DOUBLE, prevRank, tagData,
+               MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      // Add boarder values to domain
+      domainSolution.SetLeftBoarder(boardVals);
+      auto diff = domainSolution.OneStepOfSolution();
+      maxDiff = std::max(maxDiff, diff);
+      printf("maxDiff for rank %d equals %f\n", rank, maxDiff);
+      // Check if builded solution is suitable for current domain
+      auto flattened = domainSolution.Flatten(eDir::left);
+      if (maxDiff < tolerance || iter == maxIter - 1 || sizeAndState.second) {
+        sizeAndState = {flattened.size(), 1};
+        MPI_Send(&sizeAndState, 2, MPI_INT, nextRank, tagSAS, MPI_COMM_WORLD);
+        MPI_Send(&flattened[0], sizeAndState.first, MPI_DOUBLE, nextRank,
+                 tagData, MPI_COMM_WORLD);
+        break;
+      } else {
+        sizeAndState = {flattened.size(), 0};
+        MPI_Send(&sizeAndState, 2, MPI_INT, nextRank, 0, MPI_COMM_WORLD);
+        MPI_Send(&flattened[0], sizeAndState.first, MPI_DOUBLE, nextRank,
+                 tagData, MPI_COMM_WORLD);
+      }
+    }
   }
-  // Finalize the MPI environment
+
+  MPI_Barrier(MPI_COMM_WORLD);
+  if (rank == masterRank) {
+    MPI_Recv(&sizeAndState, 2, MPI_INT, prevRank, tagSAS, MPI_COMM_WORLD,
+             MPI_STATUS_IGNORE);
+    Grid::line_t boardVals(sizeAndState.first);
+    MPI_Recv(&boardVals[0], sizeAndState.first, MPI_DOUBLE, prevRank, tagData,
+             MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    auto joinedGrid = domainSolution.Join(boardVals, eDir::right);
+    // std::cout << "Solution after receiving right boarder:\n" << std::endl;
+    // joinedGrid.Print();
+    joinedGrid.SaveToFile("mpi");
+  }
+
   MPI_Finalize();
   return 0;
 }
