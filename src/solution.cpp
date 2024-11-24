@@ -325,8 +325,9 @@ void Solution::CalculateResid() {
 /// @brief Calculate step of descend for a numerical solution of the problem.
 /// Initially calculate numerical schema of solution `Ar`. After that calculate
 /// step `tau` of iterative descend
-double Solution::CalculateTau() {
+std::pair<double, double> Solution::CalculateTau() {
   matrix_t Ar(_M + 1, line_t(_N + 1, 0.0));
+  CalculateResid();
   for (int i = 0; i < _M - 1; i++) {
     for (int j = 0; j < _N - 1; j++) {
       int I = i + 1;
@@ -343,7 +344,7 @@ double Solution::CalculateTau() {
       Ar[I][J] = (term2 - term1 + term4 - term3 + _F[i][j]);
     }
   }
-  return Product(_resid, _resid) / Product(Ar, _resid);
+  return {Product(_resid, _resid), Product(Ar, _resid)};
 }
 
 /// @brief Product in solution space
@@ -365,10 +366,27 @@ double Solution::Product(const matrix_t &a, const matrix_t &b) {
 double Solution::OneStepOfSolution() {
   // Store differences between solution on different steps: w_(k+1) and w_k
   matrix_t diffs(_M + 1, line_t(_N + 1, 0.0));
-  CalculateResid();
   // Perform the iterative steepest descent
-  double tau = CalculateTau();
-  // printf("\ttau = %f\n", tau);
+  auto [tau_nom, tau_denom] = CalculateTau();
+  double tau = tau_nom / tau_denom;
+  for (int i = 0; i < _M - 1; i++) {
+    for (int j = 0; j < _N - 1; j++) {
+      int I = i + 1;
+      int J = j + 1;
+      // Update values for solution
+      _nodes[I][J] = _nodes[I][J] - tau * _resid[I][J];
+      diffs[I][J] = tau * _resid[I][J];
+    }
+  }
+  return std::sqrt(Product(diffs, diffs));
+}
+
+/// @brief Make on step of iterative descent for problem solving
+/// @return Norm of differences of solutions for neighboring steps
+double Solution::OneStepOfSolution(double tau) {
+  // Store differences between solution on different steps: w_(k+1) and w_k
+  matrix_t diffs(_M + 1, line_t(_N + 1, 0.0));
+  // Perform the iterative steepest descent
   for (int i = 0; i < _M - 1; i++) {
     for (int j = 0; j < _N - 1; j++) {
       int I = i + 1;
@@ -388,7 +406,8 @@ void Solution::ComputeW() {
   for (int iter = 0; iter < _maxIterations; iter++) {
     double maxChange = 0.0;
     CalculateResid();
-    double tau = CalculateTau();
+    auto [tau_nom, tau_denom] = CalculateTau();
+    double tau = tau_nom / tau_denom;
     for (int i = 0; i < _M - 1; i++) {
       for (int j = 0; j < _N - 1; j++) {
         int I = i + 1;

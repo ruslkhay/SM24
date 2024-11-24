@@ -73,19 +73,21 @@ public:
   void SaveToFile(std::string fileName);
   void Find(sMethod method, int threads = 1);
   Solution Join(const line_t &boarderVal, eDir direction);
-  double OneStepOfSolution();
   void ComputeABF() {
     ComputeA();
     ComputeB();
     ComputeF();
   };
   matrix_t GetResiduals() { return _resid; }
+  std::pair<double, double> CalculateTau();
+  double OneStepOfSolution(double tau);
+  double OneStepOfSolution();
 
 private:
   int _maxIterations;
   time_t _execTime = time_t::duration::zero();
   double _tolerance;
-  int _threads;
+  int _threads = 1;
 
   matrix_t _a;
   matrix_t _b;
@@ -104,7 +106,6 @@ private:
   void CreateOutputDir(std::string buildDir = ".",
                        std::string outputDirName = "output");
   void CalculateResid();
-  double CalculateTau();
   double Product(const matrix_t &a, const matrix_t &b);
 };
 
