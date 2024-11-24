@@ -5,6 +5,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+// #include <mpi.h>
 
 void debugReceivePrint(const std::vector<double> &storage, const int currRank,
                        const int prevRank, std::pair<int, int> buffSize);

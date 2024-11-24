@@ -115,3 +115,36 @@ prepareSubGrid(const std::vector<std::vector<double>> &grid, int x0, int xM,
   }
   return tmpBuf;
 }
+
+// void Solution::ComputeW(int procNum, int rank, int prev) { // Use MPI_init in
+// Solution::Find "mpi" case.
+//   // auto [x0, xM, y0, yN] = GetSectors(procNum, rank, _M, _N);
+//   matrix_t r(_M + 1, line_t(_N + 1, 0.0));
+//   matrix_t Ar(_M + 1, line_t(_N + 1, 0.0));
+//   matrix_t diffs(_M + 1, line_t(_N + 1, 0.0));
+//   // Perform the iterative steepest descent
+//   for (int iter = 0; iter < _maxIterations; iter++) {
+//     matrix_t newW = _nodes;
+//     double maxChange = 0.0;
+//     CalculateResid(r);
+//     CalculateAr(Ar, r);
+//     double tau = CalculateTau(Ar, r);
+//     for (int i = 0; i < _M - 1; i++) {
+//       for (int j = 0; j < _N - 1; j++) {
+//         int I = i + 1;
+//         int J = j + 1;
+//         newW[I][J] = _nodes[I][J] - tau * r[I][J];
+//         diffs[I][J] = tau * r[I][J];
+//       }
+//     }
+//     maxChange = std::max(maxChange, std::sqrt(Product(diffs, diffs)));
+//     // MPI_Send();
+//     // Update W after all computations
+//     _nodes = newW;
+//     /// TODO Implement logic here for MPI_Send and MPI_Receive
+//     // Check for convergence
+//     if (maxChange < _tolerance) {
+//       break;
+//     }
+//   }
+// }

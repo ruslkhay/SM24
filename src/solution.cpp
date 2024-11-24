@@ -44,40 +44,43 @@ Grid::Grid(int M, int N, double x0, double y0, double h1, double h2) {
   _nodes.assign(_M + 1, line_t(_N + 1, 0));
 }
 
-Grid::line_t Grid::Flatten(eDir direction) {
-  // Create a vector to hold the flattened results
+/// @brief Convert 2D grid nodes into 1D vector
+/// @param direction Define what boarder values to get rid of.
+/// @param offset Define how many rows or columns needed to be dropped before
+/// flattening Dumping those are reasonable, because for Solution class all
+/// boarders are 0's
+Grid::line_t Grid::Flatten(eDir direction, int offset) {
   std::vector<double> flattened;
   flattened.reserve(_M * _N);
-
   // Depending on the specified direction, remove the corresponding border
   switch (direction) {
-  case left: // Remove left border
-    for (int i = 1; i < _M + 1; i++) {
+  case left:
+    for (int i = offset; i < _M + 1; i++) {
       for (int j = 0; j < _N + 1; j++) {
         flattened.push_back(_nodes[i][j]);
       }
     }
     break;
 
-  case right: // Remove right border
-    for (int i = 0; i < _M; i++) {
+  case right:
+    for (int i = 0; i < _M + 1 - offset; i++) {
       for (int j = 0; j < _N + 1; j++) {
         flattened.push_back(_nodes[i][j]);
       }
     }
     break;
 
-  case top: // Remove top border
+  case top:
     for (int i = 0; i < _M + 1; i++) {
-      for (int j = 1; j < _N + 1; j++) {
+      for (int j = offset; j < _N + 1; j++) {
         flattened.push_back(_nodes[i][j]);
       }
     }
     break;
 
-  case bottom: // Remove bottom border
+  case bottom:
     for (int i = 0; i < _M + 1; i++) {
-      for (int j = 0; j < _N; j++) {
+      for (int j = 0; j < _N + 1 - offset; j++) {
         flattened.push_back(_nodes[i][j]);
       }
     }
@@ -92,7 +95,7 @@ Solution Solution::Join(const std::vector<double> &flattened, eDir direction) {
   int newN = _N; // Original rows, including borders
   int flatSize = flattened.size();
 
-  if (flattened.size() % _M != 0 && flattened.size() % _N != 0) {
+  if (flattened.size() % (_M + 1) != 0 && flattened.size() % (_N + 1) != 0) {
     throw std::invalid_argument(
         "The size of the flattened array does not match the expected size "
         "after border removal.");
@@ -103,14 +106,14 @@ Solution Solution::Join(const std::vector<double> &flattened, eDir direction) {
   case top:
   case bottom:
     --newN; // Get rid of top/bottom 0's boarder values of initial grid
-    flatM = flatSize / _N;
+    flatM = flatSize / _N; // TODO: add offset here <=> _N + 1 - offset
     flatN = flatSize / flatM;
     newN += flatN;
     break;
   case left:
   case right:
     --newM;
-    flatN = flatSize / _M;
+    flatN = flatSize / _M; // TODO: add offset here
     flatM = flatSize / flatN;
     newM += flatM;
     break;
@@ -185,6 +188,7 @@ Solution::Solution(int M, int N, double x0, double y0, double h1, double h2,
   _a.assign(_M, line_t(_N - 1, 0));
   _b.assign(_M - 1, line_t(_N, 0));
   _F.assign(_M - 1, line_t(_N - 1, 0));
+  _resid.assign(_M + 1, line_t(_N + 1, 0));
 };
 
 void Solution::Find(sMethod method, int threads) {
@@ -299,7 +303,7 @@ void Solution::ComputeF() {
   }
 }
 
-void Solution::CalculateResid(matrix_t &residuals) {
+void Solution::CalculateResid() {
   for (int i = 0; i < _M - 1; i++) {
     for (int j = 0; j < _N - 1; j++) {
       int I = i + 1;
@@ -313,26 +317,33 @@ void Solution::CalculateResid(matrix_t &residuals) {
       double term4 =
           (_b[i][j + 1] * (_nodes[I][J + 1] - _nodes[I][J])) / (_h2 * _h2);
 
-      residuals[I][J] = (term2 - term1 + term4 - term3 + _F[i][j]);
+      _resid[I][J] = (term2 - term1 + term4 - term3 + _F[i][j]);
     }
   }
 }
 
-void Solution::CalculateAr(matrix_t &Ar, const matrix_t &resid) {
+/// @brief Calculate step of descend for a numerical solution of the problem.
+/// Initially calculate numerical schema of solution `Ar`. After that calculate
+/// step `tau` of iterative descend
+double Solution::CalculateTau() {
+  matrix_t Ar(_M + 1, line_t(_N + 1, 0.0));
   for (int i = 0; i < _M - 1; i++) {
     for (int j = 0; j < _N - 1; j++) {
       int I = i + 1;
       int J = j + 1;
-      double term1 = (_a[i][j] * (resid[I][J] - resid[I - 1][J])) / (_h1 * _h1);
+      double term1 =
+          (_a[i][j] * (_resid[I][J] - _resid[I - 1][J])) / (_h1 * _h1);
       double term2 =
-          (_a[i + 1][j] * (resid[I + 1][J] - resid[I][J])) / (_h1 * _h1);
-      double term3 = (_b[i][j] * (resid[I][J] - resid[I][J - 1])) / (_h2 * _h2);
+          (_a[i + 1][j] * (_resid[I + 1][J] - _resid[I][J])) / (_h1 * _h1);
+      double term3 =
+          (_b[i][j] * (_resid[I][J] - _resid[I][J - 1])) / (_h2 * _h2);
       double term4 =
-          (_b[i][j + 1] * (resid[I][J + 1] - resid[I][J])) / (_h2 * _h2);
+          (_b[i][j + 1] * (_resid[I][J + 1] - _resid[I][J])) / (_h2 * _h2);
 
       Ar[I][J] = (term2 - term1 + term4 - term3 + _F[i][j]);
     }
   }
+  return Product(_resid, _resid) / Product(Ar, _resid);
 }
 
 /// @brief Product in solution space
@@ -349,30 +360,43 @@ double Solution::Product(const matrix_t &a, const matrix_t &b) {
   return res;
 }
 
+/// @brief Make on step of iterative descent for problem solving
+/// @return Norm of differences of solutions for neighboring steps
+double Solution::OneStepOfSolution() {
+  // Store differences between solution on different steps: w_(k+1) and w_k
+  matrix_t diffs(_M + 1, line_t(_N + 1, 0.0));
+  // Perform the iterative steepest descent
+  CalculateResid();
+  double tau = CalculateTau();
+  for (int i = 0; i < _M - 1; i++) {
+    for (int j = 0; j < _N - 1; j++) {
+      int I = i + 1;
+      int J = j + 1;
+      // Update values for solution
+      _nodes[I][J] = _nodes[I][J] - tau * _resid[I][J];
+      diffs[I][J] = tau * _resid[I][J];
+    }
+  }
+  return std::sqrt(Product(diffs, diffs));
+}
+
 void Solution::ComputeW() {
-  matrix_t r(_M + 1, line_t(_N + 1, 0.0));
-  matrix_t Ar(_M + 1, line_t(_N + 1, 0.0));
+  // Store differences between solution on different steps: w_(k+1) and w_k
   matrix_t diffs(_M + 1, line_t(_N + 1, 0.0));
   // Perform the iterative steepest descent
   for (int iter = 0; iter < _maxIterations; iter++) {
-    matrix_t newW = _nodes;
     double maxChange = 0.0;
-    CalculateResid(r);
-    CalculateAr(Ar, r);
-    double tau = CalculateTau(Ar, r);
+    CalculateResid();
+    double tau = CalculateTau();
     for (int i = 0; i < _M - 1; i++) {
       for (int j = 0; j < _N - 1; j++) {
         int I = i + 1;
         int J = j + 1;
-        newW[I][J] = _nodes[I][J] - tau * r[I][J];
-        diffs[I][J] = tau * r[I][J];
+        _nodes[I][J] = _nodes[I][J] - tau * _resid[I][J];
+        diffs[I][J] = tau * _resid[I][J];
       }
     }
-
     maxChange = std::max(maxChange, std::sqrt(Product(diffs, diffs)));
-    // Update W after all computations
-    _nodes = newW;
-    /// TODO Implement logic here for MPI_Send and MPI_Receive
     // Check for convergence
     if (maxChange < _tolerance) {
       break;

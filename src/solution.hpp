@@ -50,19 +50,15 @@ public:
   void SetBottomBoarder(const line_t &newBoarder);
 
   void Print();
-  /// @brief Convert 2D grid nodes into 1D vector
-  /// @param direction Define what boarder values to get rid of.
-  /// Dumping those are reasonable, because for Solution class all boarders are
-  /// 0's
-  line_t Flatten(eDir direction);
+  line_t Flatten(eDir direction, int offset = 1);
   Grid Join(const line_t &boarderVal, eDir direction);
 
 protected:
-  int _M;       // Number of columns
-  int _N;       // Number of rows
-  int _x0, _y0; // Bottom left corner position for grid
-  double _h1;   // Horizontal step of grid
-  double _h2;   // Vertical step of grid
+  int _M;       /// Number of columns
+  int _N;       /// Number of rows
+  int _x0, _y0; /// Bottom left corner position for grid
+  double _h1;   /// Horizontal step of grid
+  double _h2;   /// Vertical step of grid
   /// Values, stored in grid nodes.
   /// In case of `Solution` class, it is solution itself
   matrix_t _nodes;
@@ -87,19 +83,22 @@ private:
   matrix_t _a;
   matrix_t _b;
   matrix_t _F;
+  /// Residuals of approximation by chosen numeric schema
+  matrix_t _resid;
   double _eps;
 
   void ComputeA();
   void ComputeB();
   void ComputeF();
   void ComputeW();
+  void ComputeW(int procNum, int rank, int prevRank);
+  double OneStepOfSolution();
 
   std::filesystem::path _dirPath;
   void CreateOutputDir(std::string buildDir = ".",
                        std::string outputDirName = "output");
-  void CalculateResid(matrix_t &residuals);
-  void CalculateAr(matrix_t &Ar, const matrix_t &resid);
-  double CalculateTau(const matrix_t &Ar, const matrix_t &resid);
+  void CalculateResid();
+  double CalculateTau();
   double Product(const matrix_t &a, const matrix_t &b);
 };
 
@@ -143,12 +142,4 @@ inline void Grid::Print() {
     message += '\n';
   }
   std::cout << message << std::endl;
-}
-
-/// @brief Calculate step of descend for a numerical solution of the problem
-/// @param Ar Numerical schema of solution as an operand
-/// @param resid Residuals of approximation by chosen numeric schema
-inline double Solution::CalculateTau(const matrix_t &Ar,
-                                     const matrix_t &resid) {
-  return Product(resid, resid) / Product(Ar, resid);
 }

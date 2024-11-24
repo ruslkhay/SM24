@@ -94,21 +94,35 @@ int main(int argc, char **argv) {
   MPI_Comm_size(MPI_COMM_WORLD, &size);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-  MPI_Barrier(MPI_COMM_WORLD);
   std::pair<int, int> buffSize(0, 0);
   int nextRank = (rank + 1) % size;
   int prevRank = rank == 0 ? size - 1 : rank - 1;
+  // int masterRank = 0;
 
+  // auto [x1, xM, y0, yN] = GetSectors(size, rank, M, N);
+  // auto domainSolution =
+  //     Solution(xM - x1, yN - y0, x0, y0, h1, h2, maxIter, tolerance);
+
+  // if (rank == masterRank) {
+
+  // }
+
+  MPI_Barrier(MPI_COMM_WORLD);
+
+  // if (rank % 2 == 0) {
+  //   for (int iter = 0; iter < maxIter; iter++) {
+  //     domainSolution.OneStepOfSolution()
+  //   }
+  // } else {
+  // }
+
+  auto [x0, xM, y0, yN] = GetSectors(size, rank, M, N);
+  auto solution =
+      Solution(xM - x0, yN - y0, x0, y0, h1, h2, maxIter, tolerance);
   // Communicate processes
   if (rank % 2 == 0) {
     // Get limits of first domain (0)
-    auto [x0, xM, y0, yN] = GetSectors(size, rank, M, N);
-    auto solution =
-        Solution(xM - x0, yN - y0, x0, y0, h1, h2, maxIter, tolerance);
     solution.Find(method);
-    // auto rightGrid = solution.Flatten(eDir::left);
-
-    // auto boardVals = solution.GetRightBoarder();
     // Take right inner nodes and send it to next domain
     auto boardVals = solution.GetColumn(solution.GetM() - 1);
     debugSendPrint(solution.GetNodes(), rank, nextRank, x0, xM, y0, yN,
@@ -121,10 +135,6 @@ int main(int argc, char **argv) {
     joinedGrid.Print();
 
   } else {
-    auto [x0, xM, y0, yN] = GetSectors(size, rank, M, N);
-    printf("(%d; %d), (%d, %d)\n", x0, xM, y0, yN);
-    auto solution =
-        Solution(xM - x0, yN - y0, x0, y0, h1, h2, maxIter, tolerance);
     auto boarderVal = Receive(rank, prevRank);
     solution.SetLeftBoarder(boarderVal);
     solution.Find(method);
