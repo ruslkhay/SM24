@@ -64,102 +64,6 @@ protected:
   matrix_t _nodes;
 };
 
-class Solution : public Grid {
-public:
-  using time_t = std::chrono::microseconds;
-
-  Solution(int M, int N, double h1, double h2, double x0, double y0,
-           int maxIterations, double tolerance);
-  void SaveToFile(std::string fileName);
-  void Find(sMethod method, int threads = 1);
-
-  line_t GetTopResid();
-  line_t GetBottomResid();
-  line_t GetLeftResid();
-  line_t GetRightResid();
-
-  void SetLeftResid(const line_t &newBoarder);
-  void SetRightResid(const line_t &newBoarder);
-  void SetTopResid(const line_t &newBoarder);
-  void SetBottomResid(const line_t &newBoarder);
-
-  Solution Join(const line_t &boarderVal, eDir direction, int offset = 1);
-  void ComputeABF() {
-    ComputeA();
-    ComputeB();
-    ComputeF();
-  };
-  void CalculateResid();
-  std::pair<double, double> CalculateTau();
-  matrix_t GetResiduals() { return _resid; }
-  double OneStepOfSolution(double tau);
-  double OneStepOfSolution();
-
-private:
-  int _maxIterations;
-  time_t _execTime = time_t::duration::zero();
-  double _tolerance;
-  int _threads = 1;
-
-  matrix_t _a;
-  matrix_t _b;
-  matrix_t _F;
-  /// Residuals of approximation by chosen numeric schema
-  matrix_t _resid;
-  double _eps;
-
-  void ComputeA();
-  void ComputeB();
-  void ComputeF();
-  void ComputeW();
-  void ComputeW(int procNum, int rank, int prevRank);
-
-  std::filesystem::path _dirPath;
-  void CreateOutputDir(std::string buildDir = ".",
-                       std::string outputDirName = "output");
-  double Product(const matrix_t &a, const matrix_t &b);
-};
-
-inline Solution::line_t Solution::GetLeftResid() { return _resid[1]; }
-
-inline Solution::line_t Solution::GetRightResid() { return _resid[_M - 1]; }
-
-inline Solution::line_t Solution::GetTopResid() {
-  line_t res(_M + 1);
-  for (int i = 0; i < _M + 1; ++i) {
-    res[i] = _resid[i][1];
-  }
-  return res;
-}
-
-inline Solution::line_t Solution::GetBottomResid() {
-  line_t res(_M + 1);
-  for (int i = 0; i < _M + 1; ++i) {
-    res[i] = _resid[i][_N - 1];
-  }
-  return res;
-}
-
-inline void Solution::SetLeftResid(const line_t &newBoarder) {
-  _resid[0] = newBoarder;
-}
-
-inline void Solution::SetRightResid(const line_t &newBoarder) {
-  _resid[_M] = newBoarder;
-}
-
-inline void Solution::SetTopResid(const line_t &newBoarder) {
-  for (int i = 0; i < _M + 1; ++i) {
-    _resid[i][0] = newBoarder[i];
-  }
-}
-
-inline void Solution::SetBottomResid(const line_t &newBoarder) {
-  for (int i = 0; i < _M + 1; ++i) {
-    _resid[i][_N] = newBoarder[i];
-  }
-}
-
 inline void Grid::SetLeftBoarder(const line_t &newBoarder) {
   _nodes[0] = newBoarder;
 }
@@ -196,6 +100,126 @@ inline void Grid::Print() {
   for (int j = 0; j < _N + 1; ++j) {
     for (int i = 0; i < _M + 1; ++i) {
       message += std::to_string(_nodes[i][j]) + "|";
+    }
+    message += '\n';
+  }
+  std::cout << message << std::endl;
+}
+
+class Solution : public Grid {
+public:
+  using time_t = std::chrono::microseconds;
+
+  Solution(int M, int N, double h1, double h2, double x0, double y0,
+           int maxIterations, double tolerance);
+  void SaveToFile(std::string fileName);
+  void Find(sMethod method, int threads = 1);
+  Solution Join(const line_t &boarderVal, eDir direction, int offset = 1);
+  void ComputeABF() {
+    ComputeA();
+    ComputeB();
+    ComputeF();
+  };
+  matrix_t GetResiduals() { return _resid; }
+  std::pair<double, double> CalculateTau();
+  double OneStepOfSolution(double tau);
+  double OneStepOfSolution();
+
+  std::pair<line_t, line_t> GetColumn(int m);
+  std::pair<line_t, line_t> GetRow(int n);
+
+  void SetColumn(int m, const std::pair<line_t, line_t> &valsNodesResid);
+  void SetRow(int n, const std::pair<line_t, line_t> &valsNodesResid);
+
+  // We are interested only in getting inner nodes
+  std::pair<line_t, line_t> GetTopBoarder() { return GetRow(1); };
+  std::pair<line_t, line_t> GetBottomBoarder() { return GetRow(_N - 1); };
+  std::pair<line_t, line_t> GetLeftBoarder() { return GetColumn(1); };
+  std::pair<line_t, line_t> GetRightBoarder() { return GetColumn(_M - 1); };
+  // We are interested only in changing outer nodes boarder values
+  void SetTopBoarder(const std::pair<line_t, line_t> &newBoarder) {
+    SetRow(0, newBoarder);
+  };
+  void SetBottomBoarder(const std::pair<line_t, line_t> &newBoarder) {
+    SetRow(_N, newBoarder);
+  };
+  void SetLeftBoarder(const std::pair<line_t, line_t> &newBoarder) {
+    SetColumn(0, newBoarder);
+  };
+  void SetRightBoarder(const std::pair<line_t, line_t> &newBoarder) {
+    SetColumn(_M, newBoarder);
+  };
+
+  void Print();
+
+private:
+  int _maxIterations;
+  time_t _execTime = time_t::duration::zero();
+  double _tolerance;
+  int _threads = 1;
+
+  matrix_t _a;
+  matrix_t _b;
+  matrix_t _F;
+  /// Residuals of approximation by chosen numeric schema
+  matrix_t _resid;
+  double _eps;
+
+  void ComputeA();
+  void ComputeB();
+  void ComputeF();
+  void ComputeW();
+  void ComputeW(int procNum, int rank, int prevRank);
+
+  std::filesystem::path _dirPath;
+  void CreateOutputDir(std::string buildDir = ".",
+                       std::string outputDirName = "output");
+  void CalculateResid();
+  double Product(const matrix_t &a, const matrix_t &b);
+};
+
+inline std::pair<Grid::line_t, Grid::line_t> Solution::GetColumn(int m) {
+  return {_nodes[m], _resid[m]};
+};
+
+inline std::pair<Grid::line_t, Grid::line_t> Solution::GetRow(int n) {
+  line_t valsNodes(_M + 1);
+  line_t valsResid(_M + 1);
+  for (int i = 0; i < _M + 1; ++i) {
+    valsNodes[i] = _nodes[i][n];
+    valsResid[i] = _nodes[i][n];
+  }
+  return {valsNodes, valsResid};
+};
+
+inline void Solution::SetColumn(
+    int m, const std::pair<Grid::line_t, Grid::line_t> &valsNodesResid) {
+  _nodes[m] = valsNodesResid.first;
+  _resid[m] = valsNodesResid.second;
+};
+
+inline void
+Solution::SetRow(int n,
+                 const std::pair<Grid::line_t, Grid::line_t> &valsNodesResid) {
+  for (int i = 0; i < _M + 1; ++i) {
+    _nodes[i][n] = valsNodesResid.first[i];
+    _resid[i][n] = valsNodesResid.second[i];
+  }
+};
+
+inline void Solution::Print() {
+  std::string message = "\tSolution:\n";
+  // take specific index for each column
+  for (int j = 0; j < _N + 1; ++j) {
+    for (int i = 0; i < _M + 1; ++i) {
+      message += "\t" + std::to_string(_nodes[i][j]) + "|";
+    }
+    message += '\n';
+  }
+  message += "\tResiduals:\n";
+  for (int j = 0; j < _N + 1; ++j) {
+    for (int i = 0; i < _M + 1; ++i) {
+      message += "\t" + std::to_string(_resid[i][j]) + "|";
     }
     message += '\n';
   }
