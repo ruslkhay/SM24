@@ -1,6 +1,7 @@
 #include "src/mpi.hpp"
 #include "src/solution.hpp"
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdlib>
 #include <mpi.h>
@@ -35,6 +36,7 @@ auto status = MPI_STATUS_IGNORE;
 
 int main(int argc, char **argv) {
   int rank, size;
+  double start, stop;
   // Initialize the MPI environment
   MPI_Init(&argc, &argv);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
@@ -43,10 +45,10 @@ int main(int argc, char **argv) {
   std::pair<int, int> buffSize(0, 0);
   int nextRank = (rank + 1) % size;
   int prevRank = rank == 0 ? size - 1 : rank - 1;
-
   auto [x0, xM, y0, yN] = GetSectors(size, rank, M, N);
   auto domainSolution =
       Solution(xM - x0, yN - y0, x0, y0, h1, h2, maxIter, tolerance);
+  start = MPI_Wtime();
   domainSolution.ComputeABF();
   double tau = 0.0;
   double tauNom, tauDenom;
@@ -112,8 +114,8 @@ int main(int argc, char **argv) {
         auto diff = domainSolution.CalculateMaxDiff(tau);
         MPI_Allreduce(&diff, &maxDiff, 1, MPI_DOUBLE, MPI_MAX, comm);
       }
-      printf("rank %d, iter %d, maxDiff=%f\n", rank, iter, maxDiff);
-      MPI_Barrier(comm);
+      // printf("rank %d, iter %d, maxDiff=%f\n", rank, iter, maxDiff);
+      // MPI_Barrier(comm);
 
       if (maxDiff < tolerance || iter == maxIter - 1) {
         if (rank % 2 == 0) {
@@ -134,9 +136,9 @@ int main(int argc, char **argv) {
       MPI_Recv(solVals.data(), solVals.size(), MPI_DOUBLE, prevRank, tagData,
                comm, status);
       auto joinedGrid = domainSolution.Join(solVals, eDir::right, 2);
-      joinedGrid.SaveToFile("mpi");
+      joinedGrid.SaveToFile("mpi_2proc");
     }
-  } else {
+  } else if (size == 4) {
     //------------------------------------------------------------------------------
     for (int iter = 0; iter < maxIter; ++iter) {
       maxDiff = 0.0;
@@ -200,7 +202,7 @@ int main(int argc, char **argv) {
       }
       // printf("rank %d, iter %d, tau=%f\n", rank, iter, tau);
       // At this point residuals are exchanged and step is common for both ranks
-      MPI_Barrier(comm);
+      // MPI_Barrier(comm);
       if (rank % 2 == 0) {
         // Calculate and exchange residuals
         domainSolution.OneStepOfSolution(tau);
@@ -254,11 +256,9 @@ int main(int argc, char **argv) {
         auto diff = domainSolution.CalculateMaxDiff(tau);
         MPI_Allreduce(&diff, &maxDiff, 1, MPI_DOUBLE, MPI_MAX, comm);
       }
-
-      // domainSolution.Print();
-      MPI_Barrier(comm);
-      printf("rank %d, iter %d, tau=%f, maxDiff=%f\n", rank, iter, tau,
-             maxDiff);
+      // MPI_Barrier(comm);
+      // printf("rank %d, iter %d, tau=%f, maxDiff=%f\n", rank, iter, tau,
+      //  maxDiff);
 
       if (maxDiff < tolerance || iter == maxIter - 1) {
         if (rank == masterRank) {
@@ -280,7 +280,6 @@ int main(int argc, char **argv) {
           auto halfPlaneSolution =
               domainSolution.Join(solution2, eDir::bottom, 2);
           auto flattened = halfPlaneSolution.Flatten(left, 2);
-          // printf("faltten.size = %ld\n", flattened.size());
           MPI_Send(flattened.data(), flattened.size(), MPI_DOUBLE, masterRank,
                    tagData + 3, comm);
         }
@@ -295,7 +294,6 @@ int main(int argc, char **argv) {
                tagData + 1, comm, status);
       auto joinedGrid = domainSolution.Join(solVals, eDir::bottom, 2);
 
-      // printf("n = %d, m = %d", domainSolution.GetN(), domainSolution.GetM());
       size =
           (2 * (domainSolution.GetN() - 1) + 1) * (domainSolution.GetM() - 1);
       // size = 36;
@@ -303,14 +301,10 @@ int main(int argc, char **argv) {
       MPI_Recv(rightHalf.data(), size, MPI_DOUBLE, prevRank, tagData + 3, comm,
                status);
 
-      // std::cout << "\n\n\nSIZE="<<size <<std::endl<<std::endl;
-      // for (int j = 0; j < M / 2 + 1; ++j){
-      //   for (int i = 0; i < N + 1; ++i) {
-      //     printf("w[%d][%d] = %f |", i, j, rightHalf[i + j * (N+1)]);
-      //   }
-      //   std::cout << std::endl;
-      // }
       joinedGrid = joinedGrid.Join(rightHalf, eDir::right, 2);
+      stop = MPI_Wtime();
+      joinedGrid._execTime = std::chrono::duration_cast<Solution::time_t>(
+          std::chrono::duration<double>(stop - start));
       joinedGrid.SaveToFile("mpi_4proc");
     }
   }

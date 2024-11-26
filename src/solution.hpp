@@ -140,9 +140,10 @@ public:
   void CalculateResid();
   double CalculateMaxDiff(double tau);
 
+  time_t _execTime = time_t::duration::zero();
+
 private:
   int _maxIterations;
-  time_t _execTime = time_t::duration::zero();
   double _tolerance;
   int _threads = 1;
 

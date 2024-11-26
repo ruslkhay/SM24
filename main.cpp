@@ -21,18 +21,6 @@ int main() {
     auto s = Solution(M, N, x0, y0, h1, h2, maxIterations, tolerance);
     s.Find(lin);
     s.SaveToFile("linear");
-    // std::cout << "Initial grid:\n";
-    // s.Print();
-    // std::cout << "Flattened grid:\n";
-    // auto flattened = s.Flatten(eDir::right);
-    // for (auto elem : flattened) {
-    //   std::cout << elem << " ";
-    // }
-    // std::cout << std::endl;
-    // std::cout << std::endl;
-    // auto r = s.Join(flattened, eDir::left);
-    // std::cout << "Joined grid:\n";
-    // r.Print();
   }
 
   int M = 40, N = 40;
