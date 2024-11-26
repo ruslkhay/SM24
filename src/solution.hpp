@@ -43,6 +43,7 @@ public:
   inline int GetH2() { return _h2; }
   inline int GetM() { return _M; }
   inline int GetN() { return _N; }
+  inline int Size() { return (_M + 1) * (_N + 1); }
 
   void SetLeftBoarder(const line_t &newBoarder);
   void SetRightBoarder(const line_t &newBoarder);

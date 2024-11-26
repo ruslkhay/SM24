@@ -21,10 +21,10 @@ void ExchangeTau();
 void ExchangeSolut();
 void ExchangeMaxDiff();
 
-// const int M = 40, N = 40;
-// const int maxIter = 1e5;
-const int M = 8, N = 8;
-const int maxIter = 400;
+const int M = 40, N = 40;
+const int maxIter = 1e5;
+// const int M = 8, N = 8;
+// const int maxIter = 40;
 const double tolerance = 1e-6;
 const double h1 = 3.0 / M, h2 = 3.0 / N;
 // auto method = sMethod::lin;
@@ -254,55 +254,64 @@ int main(int argc, char **argv) {
         auto diff = domainSolution.CalculateMaxDiff(tau);
         MPI_Allreduce(&diff, &maxDiff, 1, MPI_DOUBLE, MPI_MAX, comm);
       }
-      printf("rank %d, iter %d, tau=%f, maxDiff=%f\n", rank, iter, tau,
-             maxDiff);
+
       // domainSolution.Print();
       MPI_Barrier(comm);
-      // domainSolution.Print();
-      //   if (maxDiff < tolerance || iter == maxIter - 1) {
-      //     if (rank == masterRank){
-      //       break;
-      //     } else if (rank == 1) {
-      //         auto flattened = domainSolution.Flatten(top, 2);
-      //         MPI_Send(flattened.data(), flattened.size(), MPI_DOUBLE,
-      //         masterRank,
-      //                tagData + 1, comm);
-      //     } else if (rank == 2) {
-      //         auto flattened = domainSolution.Flatten(top, 2);
-      //         MPI_Send(flattened.data(), flattened.size(), MPI_DOUBLE,
-      //         masterRank,
-      //                 tagData + 2, comm);
-      //     } else if (rank == 3) {
-      //         auto flattened = domainSolution.Flatten(left, 0);
-      //         MPI_Send(flattened.data(), flattened.size(), MPI_DOUBLE,
-      //         masterRank,
-      //                 tagData + 3, comm);
+      printf("rank %d, iter %d, tau=%f, maxDiff=%f\n", rank, iter, tau,
+             maxDiff);
 
-      //     break;
+      if (maxDiff < tolerance || iter == maxIter - 1) {
+        if (rank == masterRank) {
+          break;
+        } else if (rank == 1) {
+          auto flattened = domainSolution.Flatten(top, 2);
+          MPI_Send(flattened.data(), flattened.size(), MPI_DOUBLE, masterRank,
+                   tagData + 1, comm);
+        } else if (rank == 2) {
+          auto flattened = domainSolution.Flatten(top, 2);
+          MPI_Send(flattened.data(), flattened.size(), MPI_DOUBLE, 3,
+                   tagData + 2, comm);
+        } else if (rank == 3) {
+          auto size =
+              ((domainSolution.GetM() + 1)) * ((domainSolution.GetN() + 1) - 2);
+          Grid::line_t solution2(size);
+          MPI_Recv(solution2.data(), solution2.size(), MPI_DOUBLE, 2,
+                   tagData + 2, comm, status);
+          auto halfPlaneSolution =
+              domainSolution.Join(solution2, eDir::bottom, 2);
+          auto flattened = halfPlaneSolution.Flatten(left, 2);
+          // printf("faltten.size = %ld\n", flattened.size());
+          MPI_Send(flattened.data(), flattened.size(), MPI_DOUBLE, masterRank,
+                   tagData + 3, comm);
+        }
+        break;
+      }
+    }
+    if (rank == masterRank) {
+      auto size =
+          ((domainSolution.GetM() + 1)) * ((domainSolution.GetN() + 1) - 2);
+      Grid::line_t solVals(size);
+      MPI_Recv(solVals.data(), solVals.size(), MPI_DOUBLE, nextRank,
+               tagData + 1, comm, status);
+      auto joinedGrid = domainSolution.Join(solVals, eDir::bottom, 2);
+
+      // printf("n = %d, m = %d", domainSolution.GetN(), domainSolution.GetM());
+      size =
+          (2 * (domainSolution.GetN() - 1) + 1) * (domainSolution.GetM() - 1);
+      // size = 36;
+      Grid::line_t rightHalf(size);
+      MPI_Recv(rightHalf.data(), size, MPI_DOUBLE, prevRank, tagData + 3, comm,
+               status);
+
+      // std::cout << "\n\n\nSIZE="<<size <<std::endl<<std::endl;
+      // for (int j = 0; j < M / 2 + 1; ++j){
+      //   for (int i = 0; i < N + 1; ++i) {
+      //     printf("w[%d][%d] = %f |", i, j, rightHalf[i + j * (N+1)]);
       //   }
+      //   std::cout << std::endl;
       // }
-      // // domainSolution.Print();
-      // if (rank == masterRank) {
-      //   auto size =
-      //       ((domainSolution.GetM() + 1)) * ((domainSolution.GetN() + 1) -
-      //       2);
-      //   Grid::line_t solVals(size);
-      //   MPI_Recv(solVals.data(), solVals.size(), MPI_DOUBLE, prevRank,
-      //   tagData + 1,
-      //            comm, status);
-      //   auto joinedGrid = domainSolution.Join(solVals, eDir::bottom, 2);
-
-      //   size = ((domainSolution.GetM() + 1)) * ((domainSolution.GetN() + 1) -
-      //   2); Grid::line_t rightHalf(2 * size); MPI_Recv(rightHalf.data(),
-      //   size, MPI_DOUBLE, prevRank, tagData + 2,
-      //            comm, status);
-      //   size = (domainSolution.GetM() + 1) * (domainSolution.GetN() + 1);
-      //   MPI_Recv(rightHalf.data() + rightHalf.size(), size, MPI_DOUBLE,
-      //   prevRank, tagData + 3,
-      //            comm, status);
-      //   joinedGrid = joinedGrid.Join(rightHalf, eDir::right, 0);
-      //   joinedGrid.SaveToFile("mpi");
-      //   }
+      joinedGrid = joinedGrid.Join(rightHalf, eDir::right, 2);
+      joinedGrid.SaveToFile("mpi_4proc");
     }
   }
   MPI_Finalize();

@@ -107,8 +107,9 @@ Solution Solution::Join(const std::vector<double> &flattened, eDir direction,
   switch (direction) {
   case top:
   case bottom:
-    newN -= offset; // Get rid of top/bottom 0's boarder values of initial grid
-    flatM = flatSize / _N; // TODO: add offset here <=> _N + 1 - offset
+    newN = _N + 1 -
+           offset; // Get rid of top/bottom 0's boarder values of initial grid
+    flatM = flatSize / newN; // TODO: add offset here <=> _N + 1 - offset
     flatN = flatSize / flatM;
     newN += flatN;
     break;
