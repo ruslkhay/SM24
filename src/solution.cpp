@@ -364,27 +364,6 @@ double Solution::Product(const matrix_t &a, const matrix_t &b) {
   }
   return res;
 }
-
-/// @brief Make on step of iterative descent for problem solving
-/// @return Norm of differences of solutions for neighboring steps
-double Solution::OneStepOfSolution() {
-  // Store differences between solution on different steps: w_(k+1) and w_k
-  matrix_t diffs(_M + 1, line_t(_N + 1, 0.0));
-  // Perform the iterative steepest descent
-  auto [tau_nom, tau_denom] = CalculateTau();
-  double tau = tau_nom / tau_denom;
-  for (int i = 0; i < _M - 1; i++) {
-    for (int j = 0; j < _N - 1; j++) {
-      int I = i + 1;
-      int J = j + 1;
-      // Update values for solution
-      _nodes[I][J] = _nodes[I][J] - tau * _resid[I][J];
-      diffs[I][J] = tau * _resid[I][J];
-    }
-  }
-  return std::sqrt(Product(diffs, diffs));
-}
-
 /// @brief Make on step of iterative descent for problem solving
 /// @return Norm of differences of solutions for neighboring steps
 void Solution::OneStepOfSolution(double tau) {

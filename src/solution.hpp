@@ -114,7 +114,7 @@ public:
            int maxIterations, double tolerance);
   void SaveToFile(std::string fileName);
   void Find(sMethod method, int threads = 1);
-  Solution Join(const line_t &boarderVal, eDir direction, int offset = 1);
+  Solution Join(const line_t &boarderVal, eDir direction, int offset = 2);
   void ComputeABF() {
     ComputeA();
     ComputeB();
