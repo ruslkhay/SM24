@@ -78,15 +78,17 @@ Receive(std::pair<int, int> &sizeAndState,
   Grid::line_t r(sizeAndState.first);
   MPI_Recv(&r[0], sizeAndState.first, MPI_DOUBLE, prevRank, tagData + 1,
            MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-
+  // Step tau
+  MPI_Recv(&tauNomDenom, 2, MPI_DOUBLE, prevRank, tagTau, MPI_COMM_WORLD,
+           MPI_STATUS_IGNORE);
   // std::pair<Grid::line_t, Grid::line_t> boardVals;
   // return boardVals;
   return {w, r};
 }
 
 const int M = 40, N = 40;
-const int maxIter = 4 * 1e4;
-// const int M = 4, N = 4;
+const int maxIter = 1e5;
+// const int M = 6, N = 6;
 // const int maxIter = 3;
 const double tolerance = 1e-6;
 const double h1 = 3.0 / M, h2 = 3.0 / N;
@@ -135,6 +137,7 @@ int main(int argc, char **argv) {
 
       printf("maxDiff=%f, tau=%f for rank %d, iter№ %d\n", maxDiff, tau, rank,
              iter);
+      // domainSolution.Print();
 
       sizeAndState = {rightBoardVals.first.size(), 0};
       if ((maxDiff < tolerance && sizeAndState.second) || iter == maxIter - 1) {
@@ -152,19 +155,21 @@ int main(int argc, char **argv) {
     } else {
       auto maxDiff = 0.0;
       auto boardVals = Receive(sizeAndState, tauNomDenom, prevRank);
+      domainSolution.SetLeftBoarder(boardVals);
 
       tau = tauNomDenom.first / tauNomDenom.second;
       auto [tNom, tDenom] = domainSolution.CalculateTau();
       tau = (tauNomDenom.first + tNom) / (tauNomDenom.second + tDenom);
       tauNomDenom = {tNom, tDenom};
       // Add boarder values to domain
-      domainSolution.SetLeftBoarder(boardVals);
 
       auto diff = domainSolution.OneStepOfSolution(tau);
       maxDiff = std::max(maxDiff, diff);
 
       printf("maxDiff=%f, tau=%f for rank %d, iter№ %d\n", maxDiff, tau, rank,
              iter);
+      // domainSolution.Print();
+
       // Check if builded solution is suitable for current domain
       if ((maxDiff < tolerance && iter == maxIter - 1) || sizeAndState.second) {
         auto flattened = domainSolution.Flatten(eDir::left, 2);
@@ -191,7 +196,7 @@ int main(int argc, char **argv) {
     //   std::cout << elem << ", ";
     // }
     // std::cout << std::endl;
-    // std::cout << "Solution after receiving right boarder:\n" << std::endl;
+    // std::cout << "\nSolution after receiving right boarder:\n" << std::endl;
     // joinedGrid.Print();
     joinedGrid.SaveToFile("mpi");
   }
