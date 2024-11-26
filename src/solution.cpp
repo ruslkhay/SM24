@@ -389,12 +389,10 @@ double Solution::OneStepOfSolution() {
 /// @return Norm of differences of solutions for neighboring steps
 void Solution::OneStepOfSolution(double tau) {
   // Perform the iterative steepest descent
-  for (int i = 0; i < _M - 1; i++) {
-    for (int j = 0; j < _N - 1; j++) {
-      int I = i + 1;
-      int J = j + 1;
+  for (int i = 1; i < _M; i++) {
+    for (int j = 1; j < _N; j++) {
       // Update values for solution
-      _nodes[I][J] = _nodes[I][J] - tau * _resid[I][J];
+      _nodes[i][j] = _nodes[i][j] - tau * _resid[i][j];
     }
   }
 }
@@ -403,12 +401,10 @@ double Solution::CalculateMaxDiff(double tau) {
   // Store differences between solution on different steps: w_(k+1) and w_k
   matrix_t diffs(_M + 1, line_t(_N + 1, 0.0));
   // Perform the iterative steepest descent
-  for (int i = 0; i < _M - 1; i++) {
-    for (int j = 0; j < _N - 1; j++) {
-      int I = i + 1;
-      int J = j + 1;
+  for (int i = 1; i < _M; i++) {
+    for (int j = 1; j < _N; j++) {
       // Update values for solution
-      diffs[I][J] = tau * _resid[I][J];
+      diffs[i][j] = tau * _resid[i][j];
     }
   }
   return std::sqrt(Product(diffs, diffs));

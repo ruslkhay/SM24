@@ -54,7 +54,7 @@ void debugSendPrint(const std::vector<std::vector<double>> &grid,
 
 std::array<int, 4> GetLimitsTwoProc(int rank, int M, int N) {
   // + 1 appears because I've chosen specific splitting for 2 proc case
-  const int xMiddle = (M + 1) / 2 + 1;
+  const int xMiddle = M / 2 + 1;
   int x0 = 0, xM = 0;
   switch (rank) {
   case 0:
@@ -64,31 +64,29 @@ std::array<int, 4> GetLimitsTwoProc(int rank, int M, int N) {
     x0 = M - xMiddle, xM = M;
     break;
   }
-  std::array<int, 4> limits{x0, xM, 0, N};
-  return limits;
+  return {x0, xM, 0, N};
 }
 
 std::array<int, 4> GetLimitsFourProc(int rank, int M, int N) {
-  const int xMiddle = (M + 1) / 2, yMiddle = (N + 1) / 2;
+  const int xMiddle = M / 2 + 1, yMiddle = N / 2 + 1;
   // TODO: Check if it works correct (old version below)
   // const int xMiddle = M / 2 + 1, yMiddle = N / 2 + 1;
   int x0 = 0, xM = 0, y0 = 0, yN = 0;
   switch (rank) {
   case 0:
-    x0 = 0, xM = xMiddle, y0 = 0, yN = N - yMiddle;
+    x0 = 0, xM = xMiddle, y0 = 0, yN = yMiddle;
     break;
   case 1:
     x0 = 0, xM = xMiddle, y0 = N - yMiddle, yN = N;
     break;
   case 2:
-    x0 = xMiddle, xM = M, y0 = N - yMiddle, yN = N;
+    x0 = M - xMiddle, xM = M, y0 = N - yMiddle, yN = N;
     break;
   case 3:
-    x0 = xMiddle, xM = M, y0 = 0, yN = N - yMiddle;
+    x0 = M - xMiddle, xM = M, y0 = 0, yN = yMiddle;
     break;
   }
-  std::array<int, 4> limits{x0, xM, y0, yN};
-  return limits;
+  return {x0, xM, y0, yN};
 }
 
 std::array<int, 4> GetSectors(int procNum, int rank, int M, int N) {

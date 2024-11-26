@@ -16,11 +16,10 @@ int main() {
   int maxIterations = 1e5;
   double tolerance = 1e-6;
   int x0 = 0, y0 = 0;
-  auto meth = sMethod::lin;
   for (auto &[N, M] : NMs) {
     double h1 = 3.0 / M, h2 = 3.0 / N;
     auto s = Solution(M, N, x0, y0, h1, h2, maxIterations, tolerance);
-    s.Find(meth);
+    s.Find(lin);
     s.SaveToFile("linear");
     // std::cout << "Initial grid:\n";
     // s.Print();
@@ -38,11 +37,10 @@ int main() {
 
   int M = 40, N = 40;
   double h1 = 3.0 / M, h2 = 3.0 / N;
-  meth = sMethod::omp;
   for (auto threadNum : {1, 4, 16}) {
     auto s = Solution(M, N, x0, y0, h1, h2, maxIterations, tolerance);
     // auto s = Solution(M, N, maxIterations, tolerance);
-    s.Find(meth, threadNum);
+    s.Find(omp, threadNum);
     s.SaveToFile("openmp");
   }
   return 0;

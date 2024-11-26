@@ -50,7 +50,7 @@ public:
   void SetBottomBoarder(const line_t &newBoarder);
 
   void Print();
-  line_t Flatten(eDir direction, int offset = 1);
+  line_t Flatten(eDir direction, int offset = 2);
   Grid Join(const line_t &boarderVal, eDir direction);
 
 protected:
