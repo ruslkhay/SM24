@@ -332,7 +332,6 @@ void Solution::CalculateResid() {
 /// step `tau` of iterative descend
 std::pair<double, double> Solution::CalculateTau() {
   matrix_t Ar(_M + 1, line_t(_N + 1, 0.0));
-  // CalculateResid();
   for (int i = 0; i < _M - 1; i++) {
     for (int j = 0; j < _N - 1; j++) {
       int I = i + 1;
@@ -428,3 +427,75 @@ void Solution::ComputeW() {
     }
   }
 }
+
+Grid::line_t Solution::GetResidBoarder(eDir direction) {
+  line_t res;
+  switch (direction) {
+  case top:
+    res = this->GetRow(1, _resid);
+    break;
+  case bottom:
+    res = this->GetRow(_N - 1, _resid);
+    break;
+  case left:
+    res = this->GetColumn(1, _resid);
+    break;
+  case right:
+    res = this->GetColumn(_M - 1, _resid);
+    break;
+  }
+  return res;
+};
+
+void Solution::SetResidBoarder(eDir direction, const line_t &newVals) {
+  switch (direction) {
+  case top:
+    this->SetRow(0, this->_resid, newVals);
+    break;
+  case bottom:
+    this->SetRow(_N, this->_resid, newVals);
+    break;
+  case left:
+    this->SetColumn(0, this->_resid, newVals);
+    break;
+  case right:
+    this->SetColumn(_M, this->_resid, newVals);
+    break;
+  }
+};
+
+Grid::line_t Solution::GetSolutBoarder(eDir direction) {
+  line_t res;
+  switch (direction) {
+  case top:
+    res = this->GetColumn(1, _nodes);
+    break;
+  case bottom:
+    res = this->GetColumn(_N - 1, _nodes);
+    break;
+  case left:
+    res = this->GetRow(1, _nodes);
+    break;
+  case right:
+    res = this->GetRow(_M - 1, _nodes);
+    break;
+  }
+  return res;
+};
+
+void Solution::SetSolutBoarder(eDir direction, const line_t &newVals) {
+  switch (direction) {
+  case top:
+    this->SetRow(0, this->_nodes, newVals);
+    break;
+  case bottom:
+    this->SetRow(_N, this->_nodes, newVals);
+    break;
+  case left:
+    this->SetColumn(0, this->_nodes, newVals);
+    break;
+  case right:
+    this->SetColumn(_M, this->_nodes, newVals);
+    break;
+  }
+};

@@ -86,14 +86,17 @@ Receive(std::pair<int, int> &sizeAndState,
   return {w, r};
 }
 
-const int M = 40, N = 40;
-const int maxIter = 1e5;
+const int M = 4, N = 4;
+// const int maxIter = 1e5;
 // const int M = 6, N = 6;
-// const int maxIter = 3;
+const int maxIter = 8;
 const double tolerance = 1e-6;
 const double h1 = 3.0 / M, h2 = 3.0 / N;
 // auto method = sMethod::lin;
 
+int tagResid = 6;
+auto comm = MPI_COMM_WORLD;
+auto status = MPI_STATUS_IGNORE;
 int main(int argc, char **argv) {
   int rank, size;
   // Initialize the MPI environment
@@ -104,102 +107,66 @@ int main(int argc, char **argv) {
   std::pair<int, int> buffSize(0, 0);
   int nextRank = (rank + 1) % size;
   int prevRank = rank == 0 ? size - 1 : rank - 1;
-  int masterRank = 0;
+  // int masterRank = 0;
 
   auto [x0, xM, y0, yN] = GetSectors(size, rank, M, N);
   auto domainSolution =
       Solution(xM - x0, yN - y0, x0, y0, h1, h2, maxIter, tolerance);
   domainSolution.ComputeABF();
   std::pair<int, int> sizeAndState(0, 0);
-
   std::pair<double, double> tauNomDenom(0, 0);
   double tau = 0.0;
 
-  MPI_Barrier(MPI_COMM_WORLD);
+  for (int iter = 0; iter < maxIter; iter++) {
 
-  if (rank % 2 == 0) {
-    for (int iter = 0; iter < maxIter; iter++) {
-      // Store maximum of norm ||w_(k+1) - w_k||
-      auto maxDiff = 0.0;
-      // Produce one step and store ||w_(k+1) - w_k|| into diff
+    if (rank % 2 == 0) {
+      // Calculate and exchange residuals;
       domainSolution.CalculateResid();
-      if (iter == 0 || sizeAndState.second) {
-        tauNomDenom = domainSolution.CalculateTau();
-        tau = tauNomDenom.first / tauNomDenom.second;
-      } else {
-        auto [tNom, tDenom] = domainSolution.CalculateTau();
-        tau = (tauNomDenom.first + tNom) / (tauNomDenom.second + tDenom);
-      }
-
-      auto diff = domainSolution.OneStepOfSolution(tau);
-      maxDiff = std::max(maxDiff, diff);
-      auto rightBoardVals = domainSolution.GetRightBoarder();
-
-      printf("maxDiff=%f, tau=%f for rank %d, iter№ %d\n", maxDiff, tau, rank,
-             iter);
-      // domainSolution.Print();
-
-      sizeAndState = {rightBoardVals.first.size(), 0};
-      if ((maxDiff < tolerance && sizeAndState.second) || iter == maxIter - 1) {
-        sizeAndState = {rightBoardVals.first.size(), 1};
-        Send(sizeAndState, rightBoardVals, tauNomDenom, nextRank);
-      } else {
-        // Send size, state (finish or not), and boarder values
-        sizeAndState = {rightBoardVals.size(), 0};
-        Send(sizeAndState, rightBoardVals, tauNomDenom, nextRank);
-        auto boardVals = Receive(sizeAndState, tauNomDenom, prevRank);
-        domainSolution.SetRightBoarder(boardVals);
-        auto boardResidVals = ReceiveResid(rightResidVals.size(), prevRank);
-        domainSolution.SetRightResid(boardResidVals);
-      }
-    } else {
-      auto maxDiff = 0.0;
-      auto boardVals = Receive(sizeAndState, tauNomDenom, prevRank);
-      domainSolution.SetLeftBoarder(boardVals);
-
-      tau = tauNomDenom.first / tauNomDenom.second;
+      auto r = domainSolution.GetResidBoarder(eDir::right);
+      MPI_Send(r.data(), r.size(), MPI_DOUBLE, nextRank, 6, comm);
+      MPI_Recv(r.data(), r.size(), MPI_DOUBLE, prevRank, 6, comm, status);
+      domainSolution.SetResidBoarder(right, r);
+      // Calculate and exchange steps tau
       auto [tNom, tDenom] = domainSolution.CalculateTau();
-      tau = (tauNomDenom.first + tNom) / (tauNomDenom.second + tDenom);
-      tauNomDenom = {tNom, tDenom};
-      // Add boarder values to domain
-
-      auto diff = domainSolution.OneStepOfSolution(tau);
-      maxDiff = std::max(maxDiff, diff);
-
-      printf("maxDiff=%f, tau=%f for rank %d, iter№ %d\n", maxDiff, tau, rank,
-             iter);
-      // domainSolution.Print();
-
-      // Check if builded solution is suitable for current domain
-      if ((maxDiff < tolerance && iter == maxIter - 1) || sizeAndState.second) {
-        auto flattened = domainSolution.Flatten(eDir::left, 2);
-        sizeAndState = {flattened.size(), 1};
-        SendMaster(sizeAndState, flattened, nextRank);
-        break;
-      } else {
-        auto leftBoardVals = domainSolution.GetLeftBoarder();
-        sizeAndState = {leftBoardVals.first.size(), 0};
-        // debugSendPrint(domainSolution.GetNodes(), rank, nextRank, x0, xM, y0,
-        //                yN, leftBoardVals);
-        Send(sizeAndState, leftBoardVals, tauNomDenom, nextRank);
-      }
+      auto tauPart = tNom / tDenom;
+      MPI_Send(&tauPart, 1, MPI_DOUBLE, nextRank, tagTau, comm);
+      MPI_Recv(&tau, 1, MPI_DOUBLE, prevRank, tagTau, comm, status);
+      tau += tauPart;
+    } else {
+      domainSolution.CalculateResid();
+      Grid::line_t r(domainSolution.GetN() + 1);
+      MPI_Recv(r.data(), r.size(), MPI_DOUBLE, prevRank, 6, MPI_COMM_WORLD,
+               MPI_STATUS_IGNORE);
+      domainSolution.SetResidBoarder(left, r);
+      r = domainSolution.GetResidBoarder(eDir::left);
+      MPI_Send(r.data(), r.size(), MPI_DOUBLE, nextRank, 6, MPI_COMM_WORLD);
+      // Calculate and exchange steps tau
+      auto [tNom, tDenom] = domainSolution.CalculateTau();
+      auto tauPart = tNom / tDenom;
+      MPI_Recv(&tau, 1, MPI_DOUBLE, prevRank, tagTau, MPI_COMM_WORLD,
+               MPI_STATUS_IGNORE);
+      tau += tauPart;
+      MPI_Send(&tauPart, 1, MPI_DOUBLE, nextRank, tagTau, MPI_COMM_WORLD);
     }
+    printf("Rank №%d tau = %f\n", rank, tau);
+    MPI_Barrier(MPI_COMM_WORLD);
   }
 
-  if (rank == masterRank) {
-    Grid::line_t boardVals = ReceiveMaster(sizeAndState, prevRank);
-    //  MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    // domainSolution.Print();
-    auto joinedGrid = domainSolution.Join(boardVals, eDir::right, 2);
-    // std::cout << "Flattened:\n";
-    // for (auto elem: boardVals){
-    //   std::cout << elem << ", ";
-    // }
-    // std::cout << std::endl;
-    // std::cout << "\nSolution after receiving right boarder:\n" << std::endl;
-    // joinedGrid.Print();
-    joinedGrid.SaveToFile("mpi");
-  }
+  // if (rank == masterRank) {
+  //   Grid::line_t boardVals = ReceiveMaster(sizeAndState, prevRank);
+  //   //  MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+  //   // domainSolution.Print();
+  //   auto joinedGrid = domainSolution.Join(boardVals, eDir::right, 2);
+  //   // std::cout << "Flattened:\n";
+  //   // for (auto elem: boardVals){
+  //   //   std::cout << elem << ", ";
+  //   // }
+  //   // std::cout << std::endl;
+  //   // std::cout << "\nSolution after receiving right boarder:\n" <<
+  //   std::endl;
+  //   // joinedGrid.Print();
+  //   // joinedGrid.SaveToFile("mpi");
+  // }
 
   MPI_Finalize();
   return 0;

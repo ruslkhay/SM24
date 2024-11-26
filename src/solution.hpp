@@ -125,32 +125,18 @@ public:
   double OneStepOfSolution(double tau);
   double OneStepOfSolution();
 
-  std::pair<line_t, line_t> GetColumn(int m);
-  std::pair<line_t, line_t> GetRow(int n);
+  void SetResidColumn(int m, const line_t &valsNodesResid);
+  void SetResidRow(int n, const line_t &valsNodesResid);
+  line_t GetResidBoarder(eDir direction);
+  void SetResidBoarder(eDir direction, const line_t &newBoarder);
 
-  void SetColumn(int m, const std::pair<line_t, line_t> &valsNodesResid);
-  void SetRow(int n, const std::pair<line_t, line_t> &valsNodesResid);
-
-  // We are interested only in getting inner nodes
-  std::pair<line_t, line_t> GetTopBoarder() { return GetRow(1); };
-  std::pair<line_t, line_t> GetBottomBoarder() { return GetRow(_N - 1); };
-  std::pair<line_t, line_t> GetLeftBoarder() { return GetColumn(1); };
-  std::pair<line_t, line_t> GetRightBoarder() { return GetColumn(_M - 1); };
-  // We are interested only in changing outer nodes boarder values
-  void SetTopBoarder(const std::pair<line_t, line_t> &newBoarder) {
-    SetRow(0, newBoarder);
-  };
-  void SetBottomBoarder(const std::pair<line_t, line_t> &newBoarder) {
-    SetRow(_N, newBoarder);
-  };
-  void SetLeftBoarder(const std::pair<line_t, line_t> &newBoarder) {
-    SetColumn(0, newBoarder);
-  };
-  void SetRightBoarder(const std::pair<line_t, line_t> &newBoarder) {
-    SetColumn(_M, newBoarder);
-  };
+  void SetSolutColumn(int m, const line_t &valsNodesResid);
+  void SetSolutRow(int n, const line_t &valsNodesResid);
+  line_t GetSolutBoarder(eDir direction);
+  void SetSolutBoarder(eDir direction, const line_t &newBoarder);
 
   void Print();
+  void CalculateResid();
 
 private:
   int _maxIterations;
@@ -165,6 +151,11 @@ private:
   matrix_t _resid;
   double _eps;
 
+  void SetColumn(int m, matrix_t &mat, const line_t &newVals);
+  void SetRow(int n, matrix_t &mat, const line_t &newVals);
+  line_t GetColumn(int m, const matrix_t &vals);
+  line_t GetRow(int n, const matrix_t &vals);
+
   void ComputeA();
   void ComputeB();
   void ComputeF();
@@ -174,37 +165,31 @@ private:
   std::filesystem::path _dirPath;
   void CreateOutputDir(std::string buildDir = ".",
                        std::string outputDirName = "output");
-  void CalculateResid();
   double Product(const matrix_t &a, const matrix_t &b);
 };
 
-inline std::pair<Grid::line_t, Grid::line_t> Solution::GetColumn(int m) {
-  return {_nodes[m], _resid[m]};
+inline void Solution::SetColumn(int m, Grid::matrix_t &mat,
+                                const Grid::line_t &newVals) {
+  mat[m] = newVals;
 };
 
-inline std::pair<Grid::line_t, Grid::line_t> Solution::GetRow(int n) {
-  line_t valsNodes(_M + 1);
-  line_t valsResid(_M + 1);
+inline Grid::line_t Solution::GetColumn(int m, const Grid::matrix_t &mat) {
+  return mat[m];
+};
+
+inline void Solution::SetRow(int n, Grid::matrix_t &mat,
+                             const Grid::line_t &newVals) {
   for (int i = 0; i < _M + 1; ++i) {
-    valsNodes[i] = _nodes[i][n];
-    valsResid[i] = _nodes[i][n];
+    mat[i][n] = newVals[i];
   }
-  return {valsNodes, valsResid};
 };
 
-inline void Solution::SetColumn(
-    int m, const std::pair<Grid::line_t, Grid::line_t> &valsNodesResid) {
-  _nodes[m] = valsNodesResid.first;
-  _resid[m] = valsNodesResid.second;
-};
-
-inline void
-Solution::SetRow(int n,
-                 const std::pair<Grid::line_t, Grid::line_t> &valsNodesResid) {
+inline Grid::line_t Solution::GetRow(int n, const Grid::matrix_t &mat) {
+  line_t tmpBuf(_M + 1);
   for (int i = 0; i < _M + 1; ++i) {
-    _nodes[i][n] = valsNodesResid.first[i];
-    _resid[i][n] = valsNodesResid.second[i];
+    tmpBuf[i] = mat[i][n];
   }
+  return tmpBuf;
 };
 
 inline void Solution::Print() {
