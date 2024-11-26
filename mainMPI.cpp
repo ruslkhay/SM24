@@ -48,7 +48,6 @@ int main(int argc, char **argv) {
   auto domainSolution =
       Solution(xM - x0, yN - y0, x0, y0, h1, h2, maxIter, tolerance);
   domainSolution.ComputeABF();
-  std::pair<int, int> sizeAndState(0, 0);
   double tau = 0.0;
   double tauNom, tauDenom;
   double maxDiff;
@@ -86,7 +85,7 @@ int main(int argc, char **argv) {
         MPI_Allreduce(&d, &tauDenom, 1, MPI_DOUBLE, MPI_SUM, comm);
         tau = tauNom / tauDenom;
       }
-      printf("rank %d, iter %d, tau=%f\n", rank, iter, tau);
+      // printf("rank %d, iter %d, tau=%f\n", rank, iter, tau);
       // At this point residuals are exchanged and step is common for both ranks
       MPI_Barrier(comm);
 
@@ -100,9 +99,7 @@ int main(int argc, char **argv) {
         domainSolution.SetSolutBoarder(right, w);
         // Calculate and exchange maximum of norm
         auto diff = domainSolution.CalculateMaxDiff(tau);
-        MPI_Send(&diff, 1, MPI_DOUBLE, nextRank, tagMaxDiff, comm);
-        MPI_Recv(&maxDiff, 1, MPI_DOUBLE, prevRank, tagMaxDiff, comm, status);
-        maxDiff += diff;
+        MPI_Allreduce(&diff, &maxDiff, 1, MPI_DOUBLE, MPI_MAX, comm);
       } else {
         domainSolution.OneStepOfSolution(tau);
         Grid::line_t w(domainSolution.GetN() + 1);
@@ -113,11 +110,9 @@ int main(int argc, char **argv) {
         MPI_Send(w.data(), w.size(), MPI_DOUBLE, nextRank, tagSol, comm);
         // Calculate and exchange maximum of norm
         auto diff = domainSolution.CalculateMaxDiff(tau);
-        MPI_Recv(&maxDiff, 1, MPI_DOUBLE, prevRank, tagMaxDiff, comm, status);
-        MPI_Send(&diff, 1, MPI_DOUBLE, nextRank, tagMaxDiff, comm);
-        maxDiff += diff;
+        MPI_Allreduce(&diff, &maxDiff, 1, MPI_DOUBLE, MPI_MAX, comm);
       }
-      // printf("rank %d, iter %d, maxDiff=%f\n", rank, iter, maxDiff);
+      printf("rank %d, iter %d, maxDiff=%f\n", rank, iter, maxDiff);
       MPI_Barrier(comm);
 
       if (maxDiff < tolerance || iter == maxIter - 1) {
@@ -133,22 +128,12 @@ int main(int argc, char **argv) {
     }
 
     if (rank == masterRank) {
-      // Grid::line_t boardVals = ReceiveMaster(sizeAndState, prevRank);
       auto size =
           ((domainSolution.GetM() + 1) - 2) * (domainSolution.GetN() + 1);
       Grid::line_t solVals(size);
       MPI_Recv(solVals.data(), solVals.size(), MPI_DOUBLE, prevRank, tagData,
                comm, status);
-      //  MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-      // domainSolution.Print();
       auto joinedGrid = domainSolution.Join(solVals, eDir::right, 2);
-      // std::cout << "Flattened:\n";
-      // for (auto elem: boardVals){
-      //   std::cout << elem << ", ";
-      // }
-      // std::cout << std::endl;
-      // std::cout << "\nSolution after receiving right boarder:\n" <<
-      // joinedGrid.Print();
       joinedGrid.SaveToFile("mpi");
     }
   } else {
@@ -215,6 +200,64 @@ int main(int argc, char **argv) {
       printf("rank %d, iter %d, tau=%f\n", rank, iter, tau);
       // At this point residuals are exchanged and step is common for both ranks
       MPI_Barrier(comm);
+      if (rank % 2 == 0) {
+        // Calculate and exchange residuals
+        domainSolution.CalculateResid();
+        Grid::line_t r;
+        Grid::line_t r2;
+        if (rank == 0) {
+          r = domainSolution.GetResidBoarder(eDir::bottom);
+          r2 = domainSolution.GetResidBoarder(eDir::right);
+        } else {
+          r = domainSolution.GetResidBoarder(eDir::top);
+          r2 = domainSolution.GetResidBoarder(eDir::left);
+        }
+        MPI_Send(r.data(), r.size(), MPI_DOUBLE, nextRank, tagResid, comm);
+        MPI_Send(r2.data(), r2.size(), MPI_DOUBLE, prevRank, tagResid, comm);
+        MPI_Recv(r.data(), r.size(), MPI_DOUBLE, prevRank, tagResid, comm,
+                 status);
+        MPI_Recv(r2.data(), r2.size(), MPI_DOUBLE, nextRank, tagResid, comm,
+                 status);
+        if (rank == 0) {
+          domainSolution.SetResidBoarder(right, r);
+          domainSolution.SetResidBoarder(bottom, r2);
+        } else {
+          domainSolution.SetResidBoarder(left, r);
+          domainSolution.SetResidBoarder(top, r2);
+        }
+        // Calculate and exchange tau
+        auto [n, d] = domainSolution.CalculateTau();
+        MPI_Allreduce(&n, &tauNom, 1, MPI_DOUBLE, MPI_SUM, comm);
+        MPI_Allreduce(&d, &tauDenom, 1, MPI_DOUBLE, MPI_SUM, comm);
+        tau = tauNom / tauDenom;
+      } else {
+        // Calculate and exchange residuals
+        domainSolution.CalculateResid();
+        Grid::line_t r(domainSolution.GetN() + 1);
+        Grid::line_t r2(domainSolution.GetN() + 1);
+        MPI_Recv(r.data(), r.size(), MPI_DOUBLE, prevRank, tagResid, comm,
+                 status);
+        MPI_Recv(r2.data(), r2.size(), MPI_DOUBLE, nextRank, tagResid, comm,
+                 status);
+        if (rank == 1) {
+          domainSolution.SetResidBoarder(top, r);
+          r = domainSolution.GetResidBoarder(right);
+          domainSolution.SetResidBoarder(right, r2);
+          r2 = domainSolution.GetResidBoarder(top);
+        } else {
+          domainSolution.SetResidBoarder(bottom, r);
+          r = domainSolution.GetResidBoarder(left);
+          domainSolution.SetResidBoarder(left, r2);
+          r2 = domainSolution.GetResidBoarder(bottom);
+        }
+        MPI_Send(r.data(), r.size(), MPI_DOUBLE, nextRank, tagResid, comm);
+        MPI_Send(r2.data(), r2.size(), MPI_DOUBLE, prevRank, tagResid, comm);
+        // Calculate and exchange steps tau
+        auto [n, d] = domainSolution.CalculateTau();
+        MPI_Allreduce(&n, &tauNom, 1, MPI_DOUBLE, MPI_SUM, comm);
+        MPI_Allreduce(&d, &tauDenom, 1, MPI_DOUBLE, MPI_SUM, comm);
+        tau = tauNom / tauDenom;
+      }
     }
     // domainSolution.Print();
     if (rank == masterRank) {
