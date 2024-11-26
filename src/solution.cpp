@@ -387,7 +387,19 @@ double Solution::OneStepOfSolution() {
 
 /// @brief Make on step of iterative descent for problem solving
 /// @return Norm of differences of solutions for neighboring steps
-double Solution::OneStepOfSolution(double tau) {
+void Solution::OneStepOfSolution(double tau) {
+  // Perform the iterative steepest descent
+  for (int i = 0; i < _M - 1; i++) {
+    for (int j = 0; j < _N - 1; j++) {
+      int I = i + 1;
+      int J = j + 1;
+      // Update values for solution
+      _nodes[I][J] = _nodes[I][J] - tau * _resid[I][J];
+    }
+  }
+}
+
+double Solution::CalculateMaxDiff(double tau) {
   // Store differences between solution on different steps: w_(k+1) and w_k
   matrix_t diffs(_M + 1, line_t(_N + 1, 0.0));
   // Perform the iterative steepest descent
@@ -396,7 +408,6 @@ double Solution::OneStepOfSolution(double tau) {
       int I = i + 1;
       int J = j + 1;
       // Update values for solution
-      _nodes[I][J] = _nodes[I][J] - tau * _resid[I][J];
       diffs[I][J] = tau * _resid[I][J];
     }
   }
@@ -468,16 +479,16 @@ Grid::line_t Solution::GetSolutBoarder(eDir direction) {
   line_t res;
   switch (direction) {
   case top:
-    res = this->GetColumn(1, _nodes);
-    break;
-  case bottom:
-    res = this->GetColumn(_N - 1, _nodes);
-    break;
-  case left:
     res = this->GetRow(1, _nodes);
     break;
+  case bottom:
+    res = this->GetRow(_N - 1, _nodes);
+    break;
+  case left:
+    res = this->GetColumn(1, _nodes);
+    break;
   case right:
-    res = this->GetRow(_M - 1, _nodes);
+    res = this->GetColumn(_M - 1, _nodes);
     break;
   }
   return res;

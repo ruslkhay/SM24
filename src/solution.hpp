@@ -122,7 +122,7 @@ public:
   };
   matrix_t GetResiduals() { return _resid; }
   std::pair<double, double> CalculateTau();
-  double OneStepOfSolution(double tau);
+  void OneStepOfSolution(double tau);
   double OneStepOfSolution();
 
   void SetResidColumn(int m, const line_t &valsNodesResid);
@@ -137,6 +137,7 @@ public:
 
   void Print();
   void CalculateResid();
+  double CalculateMaxDiff(double tau);
 
 private:
   int _maxIterations;
