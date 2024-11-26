@@ -49,12 +49,11 @@ int main(int argc, char **argv) {
       Solution(xM - x0, yN - y0, x0, y0, h1, h2, maxIter, tolerance);
   domainSolution.ComputeABF();
   std::pair<int, int> sizeAndState(0, 0);
-  std::pair<double, double> tauNomDenom(0, 0);
   double tau = 0.0;
+  double tauNom, tauDenom;
   double maxDiff;
 
   if (size == 2) {
-
     for (int iter = 0; iter < maxIter; iter++) {
       maxDiff = 0.0;
       if (rank % 2 == 0) {
@@ -67,11 +66,11 @@ int main(int argc, char **argv) {
         domainSolution.SetResidBoarder(right, r);
         // Calculate and exchange steps tau
         auto tauPart = domainSolution.CalculateTau();
-        MPI_Send(&tauPart, 2, MPI_DOUBLE, nextRank, tagTau, comm);
-        MPI_Recv(&tauNomDenom, 2, MPI_DOUBLE, prevRank, tagTau, comm, status);
-        auto [n1, d1] = tauPart;
-        auto [n2, d2] = tauNomDenom;
-        tau = (n1 + n2) / (d1 + d2);
+        auto [n, d] = tauPart;
+        MPI_Allreduce(&n, &tauNom, 1, MPI_DOUBLE, MPI_SUM, comm);
+        MPI_Allreduce(&d, &tauDenom, 1, MPI_DOUBLE, MPI_SUM, comm);
+        tau = tauNom / tauDenom;
+
       } else {
         // Calculate and exchange residuals
         domainSolution.CalculateResid();
@@ -82,15 +81,12 @@ int main(int argc, char **argv) {
         r = domainSolution.GetResidBoarder(eDir::left);
         MPI_Send(r.data(), r.size(), MPI_DOUBLE, nextRank, tagResid, comm);
         // Calculate and exchange steps tau
-        auto tauPart = domainSolution.CalculateTau();
-        MPI_Recv(&tauNomDenom, 2, MPI_DOUBLE, prevRank, tagTau, comm, status);
-        MPI_Send(&tauPart, 2, MPI_DOUBLE, nextRank, tagTau, comm);
-        auto [n1, d1] = tauPart;
-        auto [n2, d2] = tauNomDenom;
-        tau = (n1 + n2) / (d1 + d2);
-        // tau += tauPart;
+        auto [n, d] = domainSolution.CalculateTau();
+        MPI_Allreduce(&n, &tauNom, 1, MPI_DOUBLE, MPI_SUM, comm);
+        MPI_Allreduce(&d, &tauDenom, 1, MPI_DOUBLE, MPI_SUM, comm);
+        tau = tauNom / tauDenom;
       }
-      // printf("rank %d, iter %d, tau=%f\n", rank, iter, tau);
+      printf("rank %d, iter %d, tau=%f\n", rank, iter, tau);
       // At this point residuals are exchanged and step is common for both ranks
       MPI_Barrier(comm);
 
@@ -121,7 +117,7 @@ int main(int argc, char **argv) {
         MPI_Send(&diff, 1, MPI_DOUBLE, nextRank, tagMaxDiff, comm);
         maxDiff += diff;
       }
-      printf("rank %d, iter %d, maxDiff=%f\n", rank, iter, maxDiff);
+      // printf("rank %d, iter %d, maxDiff=%f\n", rank, iter, maxDiff);
       MPI_Barrier(comm);
 
       if (maxDiff < tolerance || iter == maxIter - 1) {
@@ -163,7 +159,6 @@ int main(int argc, char **argv) {
         domainSolution.CalculateResid();
         Grid::line_t r;
         Grid::line_t r2;
-        // eDir dir = rank == 0 ? bottom : top;
         if (rank == 0) {
           r = domainSolution.GetResidBoarder(eDir::bottom);
           r2 = domainSolution.GetResidBoarder(eDir::right);
@@ -184,7 +179,11 @@ int main(int argc, char **argv) {
           domainSolution.SetResidBoarder(left, r);
           domainSolution.SetResidBoarder(top, r2);
         }
-
+        // Calculate and exchange tau
+        auto [n, d] = domainSolution.CalculateTau();
+        MPI_Allreduce(&n, &tauNom, 1, MPI_DOUBLE, MPI_SUM, comm);
+        MPI_Allreduce(&d, &tauDenom, 1, MPI_DOUBLE, MPI_SUM, comm);
+        tau = tauNom / tauDenom;
       } else {
         // Calculate and exchange residuals
         domainSolution.CalculateResid();
@@ -207,12 +206,17 @@ int main(int argc, char **argv) {
         }
         MPI_Send(r.data(), r.size(), MPI_DOUBLE, nextRank, tagResid, comm);
         MPI_Send(r2.data(), r2.size(), MPI_DOUBLE, prevRank, tagResid, comm);
+        // Calculate and exchange steps tau
+        auto [n, d] = domainSolution.CalculateTau();
+        MPI_Allreduce(&n, &tauNom, 1, MPI_DOUBLE, MPI_SUM, comm);
+        MPI_Allreduce(&d, &tauDenom, 1, MPI_DOUBLE, MPI_SUM, comm);
+        tau = tauNom / tauDenom;
       }
-      // printf("rank %d, iter %d, tau=%f\n", rank, iter, tau);
+      printf("rank %d, iter %d, tau=%f\n", rank, iter, tau);
       // At this point residuals are exchanged and step is common for both ranks
       MPI_Barrier(comm);
     }
-    domainSolution.Print();
+    // domainSolution.Print();
     if (rank == masterRank) {
     }
   }
