@@ -268,11 +268,7 @@ void Solution::ComputeA() {
       Point P_ij_next = {P_ij.x, P_ij.y + _h2};
 
       double lv_ij = verticalShiftLen(P_ij, P_ij_next);
-      if (lv_ij == _h2) {
-        _a[i][j] = 1;
-      } else {
-        _a[i][j] = lv_ij / _h2 + (1 - lv_ij / _h2) * (1 / _eps);
-      }
+      _a[i][j] = lv_ij / _h2 + (1 - lv_ij / _h2) * (1 / _eps);
     }
   }
 }
@@ -286,11 +282,7 @@ void Solution::ComputeB() {
       Point P_ji_next = {P_ij.x + _h1, P_ij.y};
 
       double lh_ij = horizontalShiftLen(P_ij, P_ji_next);
-      if (lh_ij == _h1) {
-        _b[i][j] = 1;
-      } else {
-        _b[i][j] = lh_ij / _h1 + (1 - lh_ij / _h1) * (1 / _eps);
-      }
+      _b[i][j] = lh_ij / _h1 + (1 - lh_ij / _h1) * (1 / _eps);
     }
   }
 }
@@ -365,6 +357,7 @@ double Solution::Product(const matrix_t &a, const matrix_t &b) {
   }
   return res;
 }
+
 /// @brief Make on step of iterative descent for problem solving
 /// @return Norm of differences of solutions for neighboring steps
 void Solution::OneStepOfSolution(double tau) {
@@ -399,12 +392,10 @@ void Solution::ComputeW() {
     CalculateResid();
     auto [tau_nom, tau_denom] = CalculateTau();
     double tau = tau_nom / tau_denom;
-    for (int i = 0; i < _M - 1; i++) {
-      for (int j = 0; j < _N - 1; j++) {
-        int I = i + 1;
-        int J = j + 1;
-        _nodes[I][J] = _nodes[I][J] - tau * _resid[I][J];
-        diffs[I][J] = tau * _resid[I][J];
+    for (int i = 0; i < _M; i++) {
+      for (int j = 0; j < _N; j++) {
+        _nodes[i][j] = _nodes[i][j] - tau * _resid[i][j];
+        diffs[i][j] = tau * _resid[i][j];
       }
     }
     maxChange = std::max(maxChange, std::sqrt(Product(diffs, diffs)));
