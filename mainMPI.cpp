@@ -1,4 +1,3 @@
-#include "src/mpi.hpp"
 #include "src/solution.hpp"
 #include <algorithm>
 #include <chrono>
@@ -15,12 +14,9 @@
 4. Calculate
 */
 
-void ExchangeResid(eDir dir, int nextRank, int prevRank) {
-
-};
-void ExchangeTau();
-void ExchangeSolut();
-void ExchangeMaxDiff();
+std::array<int, 4> GetLimitsTwoProc(int rank, int M, int N);
+std::array<int, 4> GetLimitsFourProc(int rank, int M, int N);
+std::array<int, 4> GetSectors(int procNum, int rank, int M, int N);
 
 const int M = 40, N = 40;
 const int maxIter = 1e5;
@@ -310,4 +306,60 @@ int main(int argc, char **argv) {
   }
   MPI_Finalize();
   return 0;
+}
+
+/// @brief Calculate domain vertexes coordinates in case of 2 MPI process
+std::array<int, 4> GetLimitsTwoProc(int rank, int M, int N) {
+  // + 1 appears because of chosen splitting approach
+  const int xMiddle = M / 2 + 1;
+  int x0 = 0, xM = 0;
+  switch (rank) {
+  case 0:
+    x0 = 0, xM = xMiddle;
+    break;
+  case 1:
+    x0 = M - xMiddle, xM = M;
+    break;
+  }
+  return {x0, xM, 0, N};
+}
+
+/// @brief Calculate domain vertexes coordinates in case of 4 MPI process
+std::array<int, 4> GetLimitsFourProc(int rank, int M, int N) {
+  // + 1 appears because of chosen splitting approach
+  const int xMiddle = M / 2 + 1, yMiddle = N / 2 + 1;
+  int x0 = 0, xM = 0, y0 = 0, yN = 0;
+  switch (rank) {
+  case 0:
+    x0 = 0, xM = xMiddle, y0 = 0, yN = yMiddle;
+    break;
+  case 1:
+    x0 = 0, xM = xMiddle, y0 = N - yMiddle, yN = N;
+    break;
+  case 2:
+    x0 = M - xMiddle, xM = M, y0 = N - yMiddle, yN = N;
+    break;
+  case 3:
+    x0 = M - xMiddle, xM = M, y0 = 0, yN = yMiddle;
+    break;
+  }
+  return {x0, xM, y0, yN};
+}
+
+/// @brief Calculate domain coordinates, dividing original grid into pieces.
+/// @param procNum Number of MPI processes (domains).
+/// @param rank Current process id
+/// @param M Original grid width
+/// @param N Original grid height
+/// @return Two vertexes: bottom left - (x0, y0), and top right - (xM, yN) - as
+/// array [x0, xM, y0, yN]
+std::array<int, 4> GetSectors(int procNum, int rank, int M, int N) {
+  switch (procNum) {
+  case 2:
+    return GetLimitsTwoProc(rank, M, N);
+  case 4:
+    return GetLimitsFourProc(rank, M, N);
+  default:
+    throw std::invalid_argument("Only 1, 2 or 4 processes could be launched\n");
+  }
 }
