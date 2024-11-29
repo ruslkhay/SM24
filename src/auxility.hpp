@@ -1,5 +1,5 @@
 #pragma once
-#include <vector>
+#include "inc.h"
 
 /// @brief Structure of grid node
 struct Point {

@@ -18,3 +18,13 @@
 
 ### 2.3. N=40, M=40, 16 threads
 <img src="figures/openmp_40_40_TN1.png">
+
+## 3. MPI solution
+### 3.1. N=40, M=40, 1 process 
+<img src="figures/mpi_1proc_40_40_1.png">
+
+### 3.2. N=40, M=40, 2 processes 
+<img src="figures/mpi_2proc_40_40_1.png">
+
+### 3.3. N=40, M=40, 4 processes 
+<img src="figures/mpi_4proc_40_40_1.png">

@@ -1,5 +1,5 @@
 #pragma once
-#include <vector>
+#include "inc.h"
 
 namespace linear {
 /// @brief Computer coefficient a_ij

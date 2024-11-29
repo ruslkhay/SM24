@@ -3,6 +3,16 @@ import numpy as np
 import plotly.graph_objs as go
 
 
+def task_send():
+    create_zip = "zip -r sm24.zip ./src ./Polus"
+    send = "scp sm24.zip edu-cmc-skmodel24-616-12@polus.hpc.cs.msu.ru:"
+    # launch = "ssh -i ~/.ssh/id_rsa_hpc edu-cmc-skmodel24-616-12@polus.hpc.cs.msu.ru"
+    delete_zip = "rm -rf sm24.zip"
+    return {
+        "actions": [create_zip, send, delete_zip],
+    }
+
+
 def task_figures():
     """Create hit maps for outputs."""
 
@@ -49,6 +59,7 @@ def task_figures():
                         y=y,  # Use the y coordinates for the rows
                         colorscale=[[0, "darkblue"], [0.5, "yellow"], [1, "green"]],
                         colorbar=dict(title="Value"),
+                        showscale=False,
                     )
                 )
 

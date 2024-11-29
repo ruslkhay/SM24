@@ -1,5 +1,4 @@
 #include "auxility.hpp"
-#include <iostream>
 
 bool isInTrapezoid(Point p) {
   return (p.y <= -3 * p.x + 9 && p.x >= 2 && p.x <= 3) ||

@@ -1,10 +1,5 @@
 #include "openmp.hpp"
 #include "auxility.hpp"
-#include <cmath>
-#include <iomanip> // for std::setprecision
-#include <iostream>
-#include <omp.h> // Include the OpenMP header
-#include <vector>
 
 void computeA(std::vector<std::vector<double>> &a, int TN) {
   int M = a.size();

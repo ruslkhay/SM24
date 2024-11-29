@@ -1,8 +1,5 @@
 #include "linear.hpp"
 #include "auxility.hpp"
-#include <cmath>
-#include <iomanip> // for std::setprecision
-#include <iostream>
 
 void linear::computeA(std::vector<std::vector<double>> &a) {
   int M = a.size();
