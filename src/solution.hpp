@@ -110,20 +110,33 @@ public:
   void SaveToFile(std::string fileName);
   void Find(sMethod method, int threads = 1);
   Solution Join(const line_t &boarderVal, eDir direction, int offset = 2);
+  // Linear solution
   void ComputeABF() {
     ComputeA();
     ComputeB();
     ComputeF();
   };
-  matrix_t GetResiduals() { return _resid; }
   std::pair<double, double> CalculateTau();
+  void CalculateResid();
+  double CalculateMaxDiff(double tau);
   void OneStepOfSolution(double tau);
-  double OneStepOfSolution();
 
+  // OpenMP solution
+  void OMPComputeABF();
+  std::pair<double, double> OMPCalculateTau();
+  void OMPOneStepOfSolution(double tau);
+  void OMPCalculateResid();
+  double OMPCalculateMaxDiff(double tau);
+
+  // Residuals manipulation
+
+  matrix_t GetResiduals() { return _resid; }
   void SetResidColumn(int m, const line_t &valsNodesResid);
   void SetResidRow(int n, const line_t &valsNodesResid);
   line_t GetResidBoarder(eDir direction);
   void SetResidBoarder(eDir direction, const line_t &newBoarder);
+
+  // Solution manipulation
 
   void SetSolutColumn(int m, const line_t &valsNodesResid);
   void SetSolutRow(int n, const line_t &valsNodesResid);
@@ -131,8 +144,6 @@ public:
   void SetSolutBoarder(eDir direction, const line_t &newBoarder);
 
   void Print();
-  void CalculateResid();
-  double CalculateMaxDiff(double tau);
 
   time_t _execTime = time_t::duration::zero();
 
@@ -158,6 +169,11 @@ private:
   void ComputeF();
   void ComputeW();
   void ComputeW(int procNum, int rank, int prevRank);
+
+  void OMPComputeA();
+  void OMPComputeB();
+  void OMPComputeF();
+  void OMPComputeW();
 
   // std::filesystem::path _dirPath;
   // void CreateOutputDir(std::string buildDir = ".",

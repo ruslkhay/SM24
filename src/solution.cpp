@@ -1,27 +1,4 @@
 #include "solution.hpp"
-#include "auxility.hpp"
-#include "linear.hpp"
-#include "openmp.hpp"
-
-// eDir GetOppositeDir(eDir direction){
-//   eDir dir;
-//   switch (direction)
-//   {
-//   case top:
-//     dir = bottom;
-//     break;
-//   case bottom:
-//     dir = top;
-//     break;
-//   case right:
-//     dir = left;
-//     break;
-//   case left:
-//     dir = right;
-//     break;
-//   }
-//   return dir;
-// };
 
 Grid::Grid(int M, int N) {
   _M = M;
@@ -35,7 +12,6 @@ Grid::Grid(const matrix_t &grid) {
   _N = grid[0].size() - 1;
 }
 
-// New
 Grid::Grid(int M, int N, double x0, double y0, double h1, double h2) {
   _M = M, _N = N, _x0 = x0, _y0 = y0;
   _h1 = h1, _h2 = h2;
@@ -50,7 +26,7 @@ Grid::Grid(int M, int N, double x0, double y0, double h1, double h2) {
 Grid::line_t Grid::Flatten(eDir direction, int offset) {
   std::vector<double> flattened;
   flattened.reserve((_M + 1) * (_N + 1));
-  // Depending on the specified direction, remove the corresponding border
+  // Depends on the specified direction, remove the corresponding border
   switch (direction) {
   case left:
     for (int i = offset; i < _M + 1; i++) {
@@ -98,7 +74,6 @@ Solution Solution::Join(const std::vector<double> &flattened, eDir direction,
     throw("The size of the flattened array does not match the expected size "
           "after border removal.");
   }
-  // printf("newM=%d, newN=%d, flatSize=%d\n", newM, newN, flatSize);
   int flatN, flatM;
   // Determine new dimensions based on the joining direction
   switch (direction) {
@@ -106,14 +81,14 @@ Solution Solution::Join(const std::vector<double> &flattened, eDir direction,
   case bottom:
     newN = _N + 1 -
            offset; // Get rid of top/bottom 0's boarder values of initial grid
-    flatM = flatSize / newN; // TODO: add offset here <=> _N + 1 - offset
+    flatM = flatSize / newN;
     flatN = flatSize / flatM;
     newN += flatN;
     break;
   case left:
   case right:
     newM = _M + 1 - offset;
-    flatN = flatSize / newM; // TODO: add offset here
+    flatN = flatSize / newM;
     flatM = flatSize / flatN;
     newM += flatM;
     break;
@@ -208,8 +183,8 @@ void Solution::Find(sMethod method, int threads) {
   } break;
   case omp: {
     auto start = omp_get_wtime();
-    computeJointABF(_a, _b, _F);
-    calculateW(_a, _b, _F, _nodes, _maxIterations, _tolerance);
+    OMPComputeABF();
+    OMPComputeW();
     auto stop = omp_get_wtime();
     _execTime = std::chrono::duration_cast<time_t>(
         std::chrono::duration<double>(stop - start));
@@ -219,26 +194,7 @@ void Solution::Find(sMethod method, int threads) {
   }
 };
 
-// void Solution::CreateOutputDir(std::string buildDir,
-//                                std::string outputDirName) {
-//   const std::string buildFolder = buildDir;
-//   const std::string dirName = outputDirName;
-//   _dirPath = std::filesystem::path(buildFolder) / dirName;
-//   // Check if the directory already exists
-//   if (!std::filesystem::exists(_dirPath)) {
-//     // Create the directory
-//     if (std::filesystem::create_directory(_dirPath)) {
-//       std::cout << "Reports are stored in: " << _dirPath << std::endl;
-//     } else {
-//       std::cerr << "Failed to create directory: " << _dirPath << std::endl;
-//     }
-//   } else {
-//     std::cout << "Reports are stored in: " << _dirPath << std::endl;
-//   }
-// };
-
 void Solution::SaveToFile(std::string fileName) {
-  // CreateOutputDir();
   fileName = fileName + "_" + std::to_string(_M) + '_' + std::to_string(_N) +
              '_' + std::to_string(_threads) + ".txt";
 
@@ -348,8 +304,8 @@ std::pair<double, double> Solution::CalculateTau() {
 /// @attention parameters should be same size
 double Solution::Product(const matrix_t &a, const matrix_t &b) {
   double res = 0;
-  for (int i = 0; i < static_cast<int>(a.size()); i++) {
-    for (int j = 0; j < static_cast<int>(a[0].size()); j++) {
+  for (size_t i = 1; i < a.size() - 1; i++) {
+    for (size_t j = 1; j < a[0].size() - 1; j++) {
       res += _h1 * _h2 * a[i][j] * b[i][j];
     }
   }
@@ -475,3 +431,127 @@ void Solution::SetSolutBoarder(eDir direction, const line_t &newVals) {
     break;
   }
 };
+
+void Solution::OMPComputeABF() {
+  // Calculate values for each inner node
+#pragma omp parallel for collapse(2)
+  for (int i = 0; i < _M; i++) {
+    for (int j = 0; j < _N; j++) {
+      // b
+      Point P_ij = {(i + 0.5 + _x0) * _h1, (j + 0.5 + _y0) * _h2};
+      if (i != _M - 1) {
+        Point P_ji_right = {P_ij.x + _h1, P_ij.y};
+        double lh_ij = horizontalShiftLen(P_ij, P_ji_right);
+        _b[i][j] = lh_ij / _h1 + (1 - lh_ij / _h1) * (1 / _eps);
+      }
+      // Node coordinates
+      if (j == _N - 1) {
+        continue;
+      } // a
+      Point P_ij_top = {P_ij.x, P_ij.y + _h2};
+      double lv_ij = verticalShiftLen(P_ij, P_ij_top);
+      _a[i][j] = lv_ij / _h2 + (1 - lv_ij / _h2) * (1 / _eps);
+      if (i == _M - 1) {
+        continue;
+      }
+      Point P_ij_diag = {P_ij.x + _h1, P_ij.y + _h2};
+      _F[i][j] = intersectionArea(P_ij, P_ij_diag) / (_h1 * _h2);
+    }
+  }
+}
+
+void Solution::OMPCalculateResid() {
+#pragma omp parallel for collapse(2)
+  for (int i = 0; i < _M - 1; i++) {
+    for (int j = 0; j < _N - 1; j++) {
+      int I = i + 1;
+      int J = j + 1;
+      double term1 =
+          (_a[i][j] * (_nodes[I][J] - _nodes[I - 1][J])) / (_h1 * _h1);
+      double term2 =
+          (_a[i + 1][j] * (_nodes[I + 1][J] - _nodes[I][J])) / (_h1 * _h1);
+      double term3 =
+          (_b[i][j] * (_nodes[I][J] - _nodes[I][J - 1])) / (_h2 * _h2);
+      double term4 =
+          (_b[i][j + 1] * (_nodes[I][J + 1] - _nodes[I][J])) / (_h2 * _h2);
+
+      _resid[I][J] = (term2 - term1 + term4 - term3 + _F[i][j]);
+    }
+  }
+}
+
+/// @brief Calculate step of descend for a numerical solution of the problem.
+/// Initially calculate numerical schema of solution `Ar`. After that calculate
+/// step `tau` of iterative descend
+std::pair<double, double> Solution::OMPCalculateTau() {
+  matrix_t Ar(_M + 1, line_t(_N + 1, 0.0));
+#pragma omp parallel for collapse(2)
+  for (int i = 0; i < _M - 1; i++) {
+    for (int j = 0; j < _N - 1; j++) {
+      int I = i + 1;
+      int J = j + 1;
+      double term1 =
+          (_a[i][j] * (_resid[I][J] - _resid[I - 1][J])) / (_h1 * _h1);
+      double term2 =
+          (_a[i + 1][j] * (_resid[I + 1][J] - _resid[I][J])) / (_h1 * _h1);
+      double term3 =
+          (_b[i][j] * (_resid[I][J] - _resid[I][J - 1])) / (_h2 * _h2);
+      double term4 =
+          (_b[i][j + 1] * (_resid[I][J + 1] - _resid[I][J])) / (_h2 * _h2);
+
+      Ar[I][J] = (term2 - term1 + term4 - term3 + _F[i][j]);
+    }
+  }
+  return {Product(_resid, _resid), Product(Ar, _resid)};
+}
+
+/// @brief Make on step of iterative descent for problem solving
+/// @return Norm of differences of solutions for neighboring steps
+void Solution::OMPOneStepOfSolution(double tau) {
+  // Perform the iterative steepest descent
+#pragma omp parallel for collapse(2)
+  for (int i = 1; i < _M; i++) {
+    for (int j = 1; j < _N; j++) {
+      // Update values for solution
+      _nodes[i][j] = _nodes[i][j] - tau * _resid[i][j];
+    }
+  }
+}
+
+double Solution::OMPCalculateMaxDiff(double tau) {
+  // Store differences between solution on different steps: w_(k+1) and w_k
+  matrix_t diffs(_M + 1, line_t(_N + 1, 0.0));
+#pragma omp parallel for collapse(2)
+  // Perform the iterative steepest descent
+  for (int i = 1; i < _M; i++) {
+    for (int j = 1; j < _N; j++) {
+      // Update values for solution
+      diffs[i][j] = tau * _resid[i][j];
+    }
+  }
+  return std::sqrt(Product(diffs, diffs));
+}
+
+void Solution::OMPComputeW() {
+  // Store differences between solution on different steps: w_(k+1) and w_k
+  matrix_t diffs(_M + 1, line_t(_N + 1, 0.0));
+  // Perform the iterative steepest descent
+  for (int iter = 0; iter < _maxIterations; iter++) {
+    double maxChange = 0.0;
+    OMPCalculateResid();
+    auto tauND = OMPCalculateTau();
+    double tau = tauND.first / tauND.second;
+#pragma omp parallel for collapse(2)
+    for (int i = 0; i < _M; i++) {
+      for (int j = 0; j < _N; j++) {
+        _nodes[i][j] = _nodes[i][j] - tau * _resid[i][j];
+        diffs[i][j] = tau * _resid[i][j];
+      }
+    }
+    maxChange = std::max(maxChange, std::sqrt(Product(diffs, diffs)));
+    // Check for convergence
+    if (maxChange < _tolerance) {
+      break;
+    }
+  }
+}

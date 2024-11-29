@@ -5,9 +5,7 @@ iterate with double `for` loops.
 
 ## Usage in code
 
-Pure OpenMP code is located in `src/openmp.cpp`. 
-
-Calculation of $a_{ij}$, $b_{ij}$, $F_{ij}$, $w_{ij}$ requaries double 
+Calculation of $a_{ij}$, $b_{ij}$, $F_{ij}$, $w_{ij}$ requires double 
 for-loop. Therefor they were provided with OpenMP.
 
 Used constructions:
@@ -20,7 +18,6 @@ OpenMP runtime could adjust thread counts dynamically to optimize performance
 based on workload, but disabling this can lead to more predictable behavior,
 particularly beneficial for applications where workload is known in advance and
 is stable.
-
 2. **omp_set_num_threads(N)**  \
 This function is used to set the number of threads to be used for parallel
 sections of the code. Here, N would typically be an integer representing the
@@ -40,7 +37,6 @@ iterations of multiple loops into a single set of iterations. For instance,
 two loops that each iterate over M and N iterations respectively,
 collapsing them will treat the combined iterations as M * N total iterations
 for distributing among available threads.
-
 2. **omp parallel for reduction(+ : res)** \
 This pragma permits parallel execution of the following for loop, where the
 results from each thread (or iteration) are combined at the end.
@@ -53,10 +49,38 @@ private version of res that is then combined safely.
 
 ## Performance boost
 
-Linear solution took 1803410 $\mu s$ (microseconds). 
+Local machine CPU information:
+```
+Architecture:             x86_64
+  CPU op-mode(s):         32-bit, 64-bit
+  Address sizes:          48 bits physical, 48 bits virtual
+  Byte Order:             Little Endian
+CPU(s):                   16
+  On-line CPU(s) list:    0-15
+Vendor ID:                AuthenticAMD
+  Model name:             AMD Ryzen 7 5800H with Radeon Graphics
+```
 
-| Threads   | Grid size  (M x N)  | Iter  | CPU Time ($\mu s$) | Boost %  |
+Linear solution took *1.803* $\sec$. 
+
+| Threads   | Grid size  (M x N)  | Iter  | CPU Time ($\sec$) | Boost %  |
 |---|---|---|---|---|
-| 1 | 40 x 40 | 100 000  | 2052314  | 87,9  |
-| 4 |  40 x 40 | 100 000  | 1132357 | 159,3  |
-| 16 |  40 x 40 | 100 000  | 2363495 | 76,3  |
+| 1 | 40 x 40 | 100 000  | 1.59 | 11.74  |
+| 4 | 40 x 40 | 100 000  | 1.30 | 27.74  |
+| 16 | 40 x 40 | 100 000  | 1.36 | 27.00  |
+
+On Polus:
+
+Linear solution took *330.899* $\sec$ for 80 x 90 and *1357.654* $\sec$ for 
+160 x 180.
+
+| Threads   | Grid size  (M x N)  | Iter  | CPU Time ($\sec $) | Boost %  |
+|---|---|---|---|---|
+| 2 | 80 x 90 | 1 000 000 | 195.778  | 40.83  |
+| 4 | 80 x 90 | 1 000 000 | 121.671  | 63.23  |
+| 8 | 80 x 90 | 1 000 000 | 99.431 | 69.95  |
+| 16 | 80 x 90 | 1 000 000 | 97.041  | 70.67  |
+| 4 | 160 x 180 | 1 000 000 | 423.549  | 68.80  |
+| 8 | 160 x 180 | 1 000 000 | 278.893 | 79.46  |
+| 16 | 160 x 180 | 1 000 000 | 239.975 | 82.32  |
+| 32 | 160 x 180 | 1 000 000 | 248.417 |  81.70 |

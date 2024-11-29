@@ -21,7 +21,6 @@ std::array<int, 4> GetSectors(int procNum, int rank, int M, int N);
 const int M = 40, N = 40;
 const int maxIter = 1e5;
 // const int M = 8, N = 8;
-// const int maxIter = 40;
 const double tolerance = 1e-6;
 const double h1 = 3.0 / M, h2 = 3.0 / N;
 // auto method = sMethod::lin;
