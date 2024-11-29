@@ -50,7 +50,13 @@ int main(int argc, char **argv) {
   double tauNom, tauDenom;
   double maxDiff;
 
-  if (size == 2) {
+  if (size == 1) {
+    domainSolution.Find(lin);
+    stop = MPI_Wtime();
+    domainSolution._execTime = std::chrono::duration_cast<Solution::time_t>(
+        std::chrono::duration<double>(stop - start));
+    domainSolution.SaveToFile("mpi_1proc");
+  } else if (size == 2) {
     for (int iter = 0; iter < maxIter; iter++) {
       maxDiff = 0.0;
       if (rank % 2 == 0) {
@@ -132,6 +138,9 @@ int main(int argc, char **argv) {
       MPI_Recv(solVals.data(), solVals.size(), MPI_DOUBLE, prevRank, tagData,
                comm, status);
       auto joinedGrid = domainSolution.Join(solVals, eDir::right, 2);
+      stop = MPI_Wtime();
+      joinedGrid._execTime = std::chrono::duration_cast<Solution::time_t>(
+          std::chrono::duration<double>(stop - start));
       joinedGrid.SaveToFile("mpi_2proc");
     }
   } else if (size == 4) {
@@ -355,6 +364,8 @@ std::array<int, 4> GetLimitsFourProc(int rank, int M, int N) {
 /// array [x0, xM, y0, yN]
 std::array<int, 4> GetSectors(int procNum, int rank, int M, int N) {
   switch (procNum) {
+  case 1:
+    return {0, M, 0, N};
   case 2:
     return GetLimitsTwoProc(rank, M, N);
   case 4:
