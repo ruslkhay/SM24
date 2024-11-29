@@ -1,15 +1,13 @@
 #include "openmp.hpp"
 #include "auxility.hpp"
 
-void computeA(std::vector<std::vector<double>> &a, int TN) {
+void computeA(std::vector<std::vector<double>> &a) {
   int M = a.size();
   int N = a[0].size() + 1;
   double h1 = 3.0 / M;
   double h2 = 3.0 / N;
   double eps = std::pow(std::max(h1, h2), 2);
 
-  omp_set_dynamic(0);      // Explicitly disable dynamic teams
-  omp_set_num_threads(TN); // Set number of threads
 #pragma omp parallel for collapse(2)
   for (int i = 0; i < M; i++) {
     for (int j = 0; j < N - 1; j++) {
@@ -27,15 +25,13 @@ void computeA(std::vector<std::vector<double>> &a, int TN) {
   }
 }
 
-void computeB(std::vector<std::vector<double>> &b, int TN) {
+void computeB(std::vector<std::vector<double>> &b) {
   int M = b.size() + 1;
   int N = b[0].size();
   double h1 = 3.0 / M;
   double h2 = 3.0 / N;
   double eps = std::pow(std::max(h1, h2), 2);
 
-  omp_set_dynamic(0);      // Explicitly disable dynamic teams
-  omp_set_num_threads(TN); // Set number of threads
 #pragma omp parallel for collapse(2)
   for (int i = 0; i < M - 1; i++) {
     for (int j = 0; j < N; j++) {
@@ -53,14 +49,12 @@ void computeB(std::vector<std::vector<double>> &b, int TN) {
   }
 }
 
-void computeF(std::vector<std::vector<double>> &F, int TN) {
+void computeF(std::vector<std::vector<double>> &F) {
   int M = F.size() + 1;
   int N = F[0].size() + 1;
   double h1 = 3.0 / M;
   double h2 = 3.0 / N;
 
-  omp_set_dynamic(0);      // Explicitly disable dynamic teams
-  omp_set_num_threads(TN); // Set number of threads
 #pragma omp parallel for collapse(2)
   for (int i = 0; i < M - 1; i++) {
     for (int j = 0; j < N - 1; j++) {
@@ -75,15 +69,13 @@ void computeF(std::vector<std::vector<double>> &F, int TN) {
 
 void computeJointABF(std::vector<std::vector<double>> &a,
                      std::vector<std::vector<double>> &b,
-                     std::vector<std::vector<double>> &F, int TN) {
+                     std::vector<std::vector<double>> &F) {
   int M = F.size() + 1;
   int N = F[0].size() + 1;
   double h1 = 3.0 / M;
   double h2 = 3.0 / N;
   double eps = std::pow(std::max(h1, h2), 2);
 
-  omp_set_dynamic(0);      // Explicitly disable dynamic teams
-  omp_set_num_threads(TN); // Set number of threads
 #pragma omp parallel for collapse(2)
   for (int i = 0; i < M; i++) {
     for (int j = 0; j < N; j++) {
@@ -119,12 +111,9 @@ void computeJointABF(std::vector<std::vector<double>> &a,
 }
 
 double product(std::vector<std::vector<double>> &v1,
-               std::vector<std::vector<double>> &v2, double h1, double h2,
-               int TN) {
+               std::vector<std::vector<double>> &v2, double h1, double h2) {
   double res = 0;
 
-  // omp_set_dynamic(0);      // Explicitly disable dynamic teams
-  // omp_set_num_threads(TN); // Set number of threads
 #pragma omp parallel for reduction(+ : res)
   for (int i = 0; i < static_cast<int>(v1.size()); i++) {
     for (int j = 0; j < static_cast<int>(v1[0].size()); j++) {
@@ -138,10 +127,8 @@ void calculateW(const std::vector<std::vector<double>> &a,
                 const std::vector<std::vector<double>> &b,
                 const std::vector<std::vector<double>> &F,
                 std::vector<std::vector<double>> &W, int maxIterations,
-                double tolerance, int TN) {
+                double tolerance) {
 
-  omp_set_dynamic(0);      // Explicitly disable dynamic teams
-  omp_set_num_threads(TN); // Set number of threads
   int M = F.size() + 1;
   int N = F[0].size() + 1;
   double h1 = 3.0 / M;

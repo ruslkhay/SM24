@@ -20,18 +20,22 @@ double lineBC(char axis, double val) {
 double horizontalShiftLen(Point left, Point right) {
   if (isInTrapezoid(right)) {
     return right.x - left.x;
-  } else {
+  } else if (isInTrapezoid(left)) {
     auto rLimit = lineBC('y', right.y);
     return rLimit - left.x;
+  } else {
+    return 0;
   }
 }
 
 double verticalShiftLen(Point bottom, Point top) {
   if (isInTrapezoid(top)) {
     return top.y - bottom.y;
-  } else {
+  } else if (isInTrapezoid(bottom)) {
     auto tLimit = lineBC('x', top.x);
     return tLimit - bottom.y;
+  } else {
+    return 0;
   }
 }
 

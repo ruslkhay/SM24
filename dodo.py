@@ -3,6 +3,13 @@ import numpy as np
 import plotly.graph_objs as go
 
 
+def task_build():
+    delete = "rm -rf build"
+    create = "mkdir build"
+    make = "cd build; cmake ..; make"
+    return {"actions": [delete, create, make], "verbosity": 2}
+
+
 def task_send():
     create_zip = "zip -r sm24.zip ./src ./Polus"
     send = "scp sm24.zip edu-cmc-skmodel24-616-12@polus.hpc.cs.msu.ru:"

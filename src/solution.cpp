@@ -95,9 +95,8 @@ Solution Solution::Join(const std::vector<double> &flattened, eDir direction,
   int flatSize = flattened.size();
 
   if (flattened.size() % (_M + 1) != 0 && flattened.size() % (_N + 1) != 0) {
-    throw std::invalid_argument(
-        "The size of the flattened array does not match the expected size "
-        "after border removal.");
+    throw("The size of the flattened array does not match the expected size "
+          "after border removal.");
   }
   // printf("newM=%d, newN=%d, flatSize=%d\n", newM, newN, flatSize);
   int flatN, flatM;
@@ -209,8 +208,8 @@ void Solution::Find(sMethod method, int threads) {
   } break;
   case omp: {
     auto start = omp_get_wtime();
-    computeJointABF(_a, _b, _F, threads);
-    calculateW(_a, _b, _F, _nodes, _maxIterations, _tolerance, threads);
+    computeJointABF(_a, _b, _F);
+    calculateW(_a, _b, _F, _nodes, _maxIterations, _tolerance);
     auto stop = omp_get_wtime();
     _execTime = std::chrono::duration_cast<time_t>(
         std::chrono::duration<double>(stop - start));
@@ -220,30 +219,31 @@ void Solution::Find(sMethod method, int threads) {
   }
 };
 
-void Solution::CreateOutputDir(std::string buildDir,
-                               std::string outputDirName) {
-  const std::string buildFolder = buildDir;
-  const std::string dirName = outputDirName;
-  _dirPath = std::filesystem::path(buildFolder) / dirName;
-  // Check if the directory already exists
-  if (!std::filesystem::exists(_dirPath)) {
-    // Create the directory
-    if (std::filesystem::create_directory(_dirPath)) {
-      std::cout << "Reports are stored in: " << _dirPath << std::endl;
-    } else {
-      std::cerr << "Failed to create directory: " << _dirPath << std::endl;
-    }
-  } else {
-    std::cout << "Reports are stored in: " << _dirPath << std::endl;
-  }
-};
+// void Solution::CreateOutputDir(std::string buildDir,
+//                                std::string outputDirName) {
+//   const std::string buildFolder = buildDir;
+//   const std::string dirName = outputDirName;
+//   _dirPath = std::filesystem::path(buildFolder) / dirName;
+//   // Check if the directory already exists
+//   if (!std::filesystem::exists(_dirPath)) {
+//     // Create the directory
+//     if (std::filesystem::create_directory(_dirPath)) {
+//       std::cout << "Reports are stored in: " << _dirPath << std::endl;
+//     } else {
+//       std::cerr << "Failed to create directory: " << _dirPath << std::endl;
+//     }
+//   } else {
+//     std::cout << "Reports are stored in: " << _dirPath << std::endl;
+//   }
+// };
 
 void Solution::SaveToFile(std::string fileName) {
-  CreateOutputDir();
+  // CreateOutputDir();
   fileName = fileName + "_" + std::to_string(_M) + '_' + std::to_string(_N) +
              '_' + std::to_string(_threads) + ".txt";
 
-  std::ofstream solutionFile(_dirPath / fileName);
+  // std::ofstream solutionFile(_dirPath / fileName);
+  std::ofstream solutionFile(fileName);
   solutionFile << "Solution (" << _N << "," << _M << ")"
                << " on " << _threads << " threads"
                << " took " << _execTime.count() << " microsecs:\n\n";
@@ -388,8 +388,8 @@ void Solution::ComputeW() {
   for (int iter = 0; iter < _maxIterations; iter++) {
     double maxChange = 0.0;
     CalculateResid();
-    auto [tau_nom, tau_denom] = CalculateTau();
-    double tau = tau_nom / tau_denom;
+    auto tauND = CalculateTau();
+    double tau = tauND.first / tauND.second;
     for (int i = 0; i < _M; i++) {
       for (int j = 0; j < _N; j++) {
         _nodes[i][j] = _nodes[i][j] - tau * _resid[i][j];

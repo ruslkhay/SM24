@@ -159,9 +159,9 @@ private:
   void ComputeW();
   void ComputeW(int procNum, int rank, int prevRank);
 
-  std::filesystem::path _dirPath;
-  void CreateOutputDir(std::string buildDir = ".",
-                       std::string outputDirName = "output");
+  // std::filesystem::path _dirPath;
+  // void CreateOutputDir(std::string buildDir = ".",
+  //                      std::string outputDirName = "output");
   double Product(const matrix_t &a, const matrix_t &b);
 };
 
