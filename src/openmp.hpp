@@ -1,5 +1,5 @@
 #pragma once
-#include <vector>
+#include "inc.h"
 
 /// @brief Computer coefficient a_ij
 /// @param a Matrix to store the values

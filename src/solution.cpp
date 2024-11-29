@@ -1,9 +1,7 @@
 #include "solution.hpp"
 #include "auxility.hpp"
 #include "linear.hpp"
-#include "omp.h"
 #include "openmp.hpp"
-#include <cmath>
 
 // eDir GetOppositeDir(eDir direction){
 //   eDir dir;

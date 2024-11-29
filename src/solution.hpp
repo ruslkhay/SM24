@@ -1,11 +1,5 @@
 #pragma once
-#include <chrono>
-#include <cmath>
-#include <filesystem>
-#include <fstream>
-#include <iostream>
-#include <string>
-#include <vector>
+#include "inc.h"
 
 /// @brief Solution types. It's either linear (basic), OpenMP or MPI.
 enum sMethod {
