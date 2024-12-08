@@ -1,13 +1,13 @@
 #BSUB -n 2 
 #BSUB -q short 
 #BSUB -W 0:15
-#BSUB -J MPI_prog
+#BSUB -J MPI
 #BSUB -o MPI.out
 #BSUB -e MPI.err
 #BSUB -R "affinity[core(1)]"
 
 module load SpectrumMPI 
 
-mpixlC -std=c++11 -qsmp=omp -o MPI_prog ./mainMPIOpenMP.cpp ../src/*.cpp -I ../src
+mpixlC -std=c++11 -qsmp=omp -o MPI ./mainMPIOpenMP.cpp ../src/*.cpp -I ../src
 
-mpiexec ./MPI_prog 
+mpiexec ./MPI 
