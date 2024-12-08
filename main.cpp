@@ -5,7 +5,7 @@ int main() {
               std::pair<int, int>(40, 40)};
   int maxIterations = 1e5;
   int x0 = 0, y0 = 0;
-  double tolerance = 1e-6;
+  double tolerance = 1e-7;
   for (auto &[N, M] : NMs) {
     // Linear
     double h1 = 3.0 / M, h2 = 3.0 / N;

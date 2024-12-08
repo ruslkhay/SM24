@@ -122,7 +122,7 @@ public:
   void OneStepOfSolution(double tau);
 
   // OpenMP solution
-  void OMPComputeABF();
+  void OMPComputeABF(int threads);
   std::pair<double, double> OMPCalculateTau();
   void OMPOneStepOfSolution(double tau);
   void OMPCalculateResid();
@@ -146,11 +146,11 @@ public:
   void Print();
 
   time_t _execTime = time_t::duration::zero();
+  int _threads = 1;
 
 private:
   int _maxIterations;
   double _tolerance;
-  int _threads = 1;
 
   matrix_t _a;
   matrix_t _b;

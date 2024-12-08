@@ -66,7 +66,7 @@ def task_figures():
                         y=y,  # Use the y coordinates for the rows
                         colorscale=[[0, "darkblue"], [0.5, "yellow"], [1, "green"]],
                         colorbar=dict(title="Value"),
-                        showscale=False,
+                        # showscale=False,
                     )
                 )
 

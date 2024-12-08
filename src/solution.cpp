@@ -183,7 +183,7 @@ void Solution::Find(sMethod method, int threads) {
   } break;
   case omp: {
     auto start = omp_get_wtime();
-    OMPComputeABF();
+    OMPComputeABF(threads);
     OMPComputeW();
     auto stop = omp_get_wtime();
     _execTime = std::chrono::duration_cast<time_t>(
@@ -432,7 +432,8 @@ void Solution::SetSolutBoarder(eDir direction, const line_t &newVals) {
   }
 };
 
-void Solution::OMPComputeABF() {
+void Solution::OMPComputeABF(int threads) {
+  _threads = threads;
   // Calculate values for each inner node
 #pragma omp parallel for collapse(2)
   for (int i = 0; i < _M; i++) {
