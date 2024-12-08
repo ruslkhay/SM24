@@ -158,6 +158,8 @@ int main(int argc, char **argv) {
           r = domainSolution.GetResidBoarder(eDir::top);
           r2 = domainSolution.GetResidBoarder(eDir::left);
         }
+        r.resize(domainSolution.GetN() + 1);
+        r2.resize(domainSolution.GetN() + 1);
         MPI_Send(r.data(), r.size(), MPI_DOUBLE, nextRank, tagResid, comm);
         MPI_Send(r2.data(), r2.size(), MPI_DOUBLE, prevRank, tagResid, comm);
         MPI_Recv(r.data(), r.size(), MPI_DOUBLE, prevRank, tagResid, comm,
@@ -196,6 +198,8 @@ int main(int argc, char **argv) {
           domainSolution.SetResidBoarder(left, r2);
           r2 = domainSolution.GetResidBoarder(bottom);
         }
+        r.resize(domainSolution.GetN() + 1);
+        r2.resize(domainSolution.GetN() + 1);
         MPI_Send(r.data(), r.size(), MPI_DOUBLE, nextRank, tagResid, comm);
         MPI_Send(r2.data(), r2.size(), MPI_DOUBLE, prevRank, tagResid, comm);
         // Calculate and exchange steps tau
@@ -219,6 +223,8 @@ int main(int argc, char **argv) {
           w = domainSolution.GetSolutBoarder(eDir::top);
           w2 = domainSolution.GetSolutBoarder(eDir::left);
         }
+        w.resize(domainSolution.GetN() + 1);
+        w2.resize(domainSolution.GetN() + 1);
         MPI_Send(w.data(), w.size(), MPI_DOUBLE, nextRank, tagSol, comm);
         MPI_Send(w2.data(), w2.size(), MPI_DOUBLE, prevRank, tagSol, comm);
         MPI_Recv(w.data(), w.size(), MPI_DOUBLE, prevRank, tagSol, comm,
@@ -254,6 +260,8 @@ int main(int argc, char **argv) {
           domainSolution.SetSolutBoarder(left, w2);
           w2 = domainSolution.GetSolutBoarder(bottom);
         }
+        w.resize(domainSolution.GetN() + 1);
+        w2.resize(domainSolution.GetN() + 1);
         MPI_Send(w.data(), w.size(), MPI_DOUBLE, nextRank, tagSol, comm);
         MPI_Send(w2.data(), w2.size(), MPI_DOUBLE, prevRank, tagSol, comm);
         // Calculate and exchange steps tau

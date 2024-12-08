@@ -1,13 +1,13 @@
 #BSUB -n 1 
 #BSUB -q short 
 #BSUB -W 0:15
-#BSUB -J OMP_prog
-#BSUB -o filename.%J.out
-#BSUB -e filename.%J.err
+#BSUB -J OMP
+#BSUB -o OMP.out
+#BSUB -e OMP.err
 export OMP_NUM_THREADS=4
 
 module load OpenMP
 
-xlc++_r -std=c++11 -qsmp=omp -o OMP_prog ./omp_80_90.cpp ../src/*.cpp -I ../src
+xlc++_r -std=c++11 -qsmp=omp -o OMP_prog ./mainOpenMP.cpp ../src/*.cpp -I ../src
 
 ./OMP_prog 

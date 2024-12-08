@@ -16,7 +16,7 @@ int main() {
   int maxIterations = 1e6;
   double tolerance = 1e-12;
   int x0 = 0, y0 = 0;
-  int M = 80, N = 90;
+  int M = 80, N = 90; // Change those values as you need
   double h1 = 3.0 / M, h2 = 3.0 / N;
   auto s = Solution(M, N, x0, y0, h1, h2, maxIterations, tolerance);
   s.Find(omp, num_threads);

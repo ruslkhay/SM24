@@ -1,23 +1,14 @@
-#include "src/inc.h"
+#include "../src/inc.h"
 #include <mpi.h>
-
-/*
-1. Give each process corresponding sub-areas. Therefore implement algorithm
-2. Calculate solution in sub-area
-3. Send corresponding to the process id boarder values
-4. Calculate
-*/
 
 std::array<int, 4> GetLimitsTwoProc(int rank, int M, int N);
 std::array<int, 4> GetLimitsFourProc(int rank, int M, int N);
 std::array<int, 4> GetSectors(int procNum, int rank, int M, int N);
 
 const int M = 160, N = 180;
-const int maxIter = 1e5;
-// const int M = 8, N = 8;
-const double tolerance = 1e-6;
+const int maxIter = 1e6;
+const double tolerance = 1e-12;
 const double h1 = 3.0 / M, h2 = 3.0 / N;
-// auto method = sMethod::lin;
 int masterRank = 0;
 int tagData = 40, tagTau = 50, tagResid = 60, tagMaxDiff = 70, tagSol = 80;
 auto comm = MPI_COMM_WORLD;
