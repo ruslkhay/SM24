@@ -84,3 +84,10 @@ Linear solution took *330.899* $\sec$ for 80 x 90 and *1357.654* $\sec$ for
 | 8 | 160 x 180 | 1 000 000 | 278.893 | 79.46  |
 | 16 | 160 x 180 | 1 000 000 | 239.975 | 82.32  |
 | 32 | 160 x 180 | 1 000 000 | 248.417 |  81.70 |
+
+
+## Visualization
+| <center>80 x 90</center> | <center> 160 x 180 </center> |
+|-|-|
+| <img src="../docs/figures/boost_80_90.png"> | <img src="../docs/figures/boost_160_180.png"> |
+

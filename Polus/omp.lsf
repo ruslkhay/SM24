@@ -8,6 +8,6 @@ export OMP_NUM_THREADS=4
 
 module load OpenMP
 
-xlc++_r -std=c++11 -qsmp=omp -o OMP_prog ./mainOpenMP.cpp ../src/*.cpp -I ../src
+xlc++_r -std=c++11 -qsmp=omp -o OMP ./mainOpenMP.cpp ../src/*.cpp -I ../src
 
-./OMP_prog 
+./OMP 

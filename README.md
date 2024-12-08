@@ -1,21 +1,7 @@
-# Installation
 
-Clone repository and run from root directory:
-```
-mkdir build && cd build 
-cmake ..
-make
-```
-
-## For developers
-
-Additionally you can download python package manager and create venv
-```
-curl -sSL https://pdm-project.org/install-pdm.py | python3 -
-pdm install
-```
 
 # Overview:
+
 
 This program solves Dirichlet problem
 ```math
@@ -43,3 +29,48 @@ The goal is to build accurate and parallel solution, using **OpenMP** and
 4. [OpenMP implementation](docs/omp.md)
 5. [Solution plots](docs/sol_images.md)
 6. [MPI implementation](docs/mpi.md)
+6. [MPI/OpenMP implementation](docs/mpi+omp.md)
+
+## Results representation
+
+### Heatmap for solution on grid (M, N) = (160, 180)
+<img src="docs/figures/omp_160_180_4.png">
+
+# Installation
+Clone repository and download python package manager and create venv
+```
+curl -sSL https://pdm-project.org/install-pdm.py | python3 -
+pdm install
+```
+
+## For IMP Polus:
+To automatically send required code `./Polus/` to your remote Polus space
+go to `dodo.py`, change user name in line 15 correspondingly to yours and run
+```
+doit send
+```
+After that switch to remote.
+Extract `sm24.zip` archive and go to `your_folder_name/Polus/`.
+
+### Launch
+You can manfully change grid size in *.cpp files. To change number of processes
+or threads open needed *.lsf.
+1. `bsub < mpi.lsf` - runs MPI+OpenMP version
+2. `bsub < omp.lsf` - runs OpenMP version
+
+## For local testing:
+Run CLI command from root directory to create executables:
+```
+doit build
+```
+Only `main.cpp`, `mainMPI.cpp` and `mainMPIOpenMP.cpp` are targeted. 
+
+### Launch
+You can manfully change grid size or number of threads in 
+1. `./main` - run basic and OpenMP version of program
+2. `mpirun -np N ./mpi` - runs MPI version with N processes
+3. `mpirun -np N ./ompmpi` - runs MPI+OpenMP version with N processes
+
+All output data would be saved in `build` directory.
+To create the heatmaps run from root directory command `doit figures`.
+

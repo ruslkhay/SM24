@@ -39,7 +39,11 @@ def task_figures():
             file_path = os.path.join(directory_path, filename)
 
             # Ensure we only consider .txt files
-            if os.path.isfile(file_path) and filename.endswith(".txt"):
+            if (
+                os.path.isfile(file_path)
+                and filename.endswith(".txt")
+                and filename != "CMakeCache.txt"
+            ):
                 # Step 3: Read the file content
                 with open(file_path, "r") as file:
                     # Ignore the first line
@@ -92,5 +96,5 @@ def task_figures():
 
     return {
         "actions": [visualize_solutions],
-        "targets": ["build/output"],
+        "targets": ["build"],
     }
